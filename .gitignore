@@ -1,0 +1,79 @@
+
+# ==========================================
+# DOCLAB - GITIGNORE
+# Python + PySide6
+# ==========================================
+
+# 1. Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# 2. Cache y archivos temporales de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# 3. Compilacion y distribucion
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+*.whl
+
+# 4. Archivos de PyInstaller
+*.spec
+
+# 5. Configuracion local de VS Code
+.vscode/
+.idea/
+
+# 6. Archivos temporales y logs
+*.log
+*.tmp
+*.temp
+*.bak
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 7. Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# 8. Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# 9. Documentos de prueba privados
+data/private/
+data/temp/
+data/output/
+
+# 10. Archivos generados por DocLab
+output/
+exports/
+temp/
+
+# 11. Cobertura de pruebas
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# 12. Archivos temporales de Qt
+*.autosave
+*.qmlc
+*.jsc

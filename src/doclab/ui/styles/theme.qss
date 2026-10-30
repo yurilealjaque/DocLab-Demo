@@ -1,0 +1,111 @@
+
+QWidget {
+    background-color: #111827;
+    color: #F1F5F9;
+    font-family: "Segoe UI";
+    font-size: 14px;
+}
+
+QFrame#barraLateral {
+    background-color: #0B1220;
+    border-right: 1px solid #243247;
+}
+
+QLabel#logo {
+    font-size: 30px;
+    font-weight: bold;
+    color: #5EEAD4;
+    padding: 4px;
+}
+
+QLabel#tituloPagina {
+    font-size: 28px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+QLabel#subtituloPagina {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+QLabel#textoSecundario {
+    color: #94A3B8;
+    font-size: 13px;
+}
+
+QFrame#zonaArchivos {
+    background-color: #192637;
+    border: 2px dashed #416075;
+    border-radius: 15px;
+}
+
+QLabel#tituloZona {
+    font-size: 19px;
+    font-weight: bold;
+    color: #E2E8F0;
+    background: transparent;
+}
+
+QFrame#tarjetaHerramienta {
+    background-color: #1D2939;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+QPushButton {
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-weight: 600;
+}
+
+QPushButton#botonPrincipal {
+    background-color: #0D9488;
+    color: #FFFFFF;
+}
+
+QPushButton#botonPrincipal:hover {
+    background-color: #14B8A6;
+}
+
+QPushButton#botonPrincipal:disabled {
+    background-color: #334155;
+    color: #94A3B8;
+}
+
+QPushButton#botonMenu {
+    background-color: transparent;
+    color: #CBD5E1;
+    text-align: left;
+    padding: 14px;
+}
+
+QPushButton#botonMenu:hover {
+    background-color: #1E293B;
+}
+
+QPushButton#botonMenu[activo="true"] {
+    background-color: #164E50;
+    color: #5EEAD4;
+}
+
+QPushButton#botonMenu:disabled {
+    color: #64748B;
+}
+
+QPushButton#botonHerramienta {
+    background-color: transparent;
+    color: #F1F5F9;
+    text-align: left;
+}
+
+QPushButton#botonHerramienta:hover {
+    color: #5EEAD4;
+}
+
+QPushButton#botonHerramienta:disabled {
+    color: #94A3B8;
+}
