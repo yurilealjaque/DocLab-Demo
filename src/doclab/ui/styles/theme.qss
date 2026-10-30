@@ -109,3 +109,16 @@ QPushButton#botonHerramienta:hover {
 QPushButton#botonHerramienta:disabled {
     color: #94A3B8;
 }
+
+QProgressBar {
+    background-color: #1E293B;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    min-height: 12px;
+    max-height: 12px;
+}
+
+QProgressBar::chunk {
+    background-color: #14B8A6;
+    border-radius: 5px;
+}
