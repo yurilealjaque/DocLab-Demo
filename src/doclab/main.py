@@ -8,6 +8,7 @@ from doclab.ui.main_window import VentanaPrincipal
 from doclab.infrastructure.logger import configurar_logging
 
 
+
 def main():
     # Inicializar el sistema de registros
     configurar_logging()

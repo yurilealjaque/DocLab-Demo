@@ -1,16 +1,52 @@
 
 import os
 import tempfile
-from pathlib import Path
+import zipfile
 
+from pathlib import Path
 from pdf2docx import Converter
+
+
+def validar_documento_word(ruta):
+    """
+    Comprueba que el archivo generado tenga
+    una estructura DOCX basica.
+    """
+
+    if not zipfile.is_zipfile(ruta):
+        raise ValueError(
+            "El documento generado no es un DOCX valido."
+        )
+
+    with zipfile.ZipFile(ruta, "r") as documento:
+        archivos = documento.namelist()
+
+        elementos_necesarios = [
+            "[Content_Types].xml",
+            "word/document.xml",
+        ]
+
+        for elemento in elementos_necesarios:
+            if elemento not in archivos:
+                raise ValueError(
+                    "El Word generado tiene una "
+                    "estructura incompleta."
+                )
+
+        archivo_corrupto = documento.testzip()
+
+        if archivo_corrupto is not None:
+            raise ValueError(
+                "El documento generado contiene "
+                "datos ZIP corruptos."
+            )
 
 
 def convertir_pdf_a_word(ruta_origen, ruta_destino):
     origen = Path(ruta_origen)
     destino = Path(ruta_destino)
 
-    # Validar el documento de entrada.
+    # 1. Validar las rutas.
     if not origen.is_file():
         raise FileNotFoundError(
             "El archivo PDF no existe."
@@ -28,7 +64,7 @@ def convertir_pdf_a_word(ruta_origen, ruta_destino):
 
     if destino.exists():
         raise FileExistsError(
-            "El archivo de destino ya existe."
+            "El documento de destino ya existe."
         )
 
     if not destino.parent.is_dir():
@@ -36,11 +72,10 @@ def convertir_pdf_a_word(ruta_origen, ruta_destino):
             "La carpeta de destino no existe."
         )
 
-    # Crear un archivo temporal en la carpeta
-    # donde se guardara el Word definitivo.
+    # 2. Crear archivo temporal.
     descriptor, ruta_temporal = tempfile.mkstemp(
-        suffix=".docx",
         prefix="doclab_",
+        suffix=".docx",
         dir=destino.parent
     )
 
@@ -50,17 +85,17 @@ def convertir_pdf_a_word(ruta_origen, ruta_destino):
     conversor = None
 
     try:
+        # 3. Convertir el PDF.
         conversor = Converter(str(origen))
-
         conversor.convert(str(temporal))
 
-        # Cerrar antes de publicar el resultado.
         conversor.close()
         conversor = None
 
+        # 4. Comprobar el resultado.
         if not temporal.is_file():
             raise RuntimeError(
-                "No se genero el archivo Word."
+                "No se genero el documento Word."
             )
 
         if temporal.stat().st_size == 0:
@@ -68,36 +103,30 @@ def convertir_pdf_a_word(ruta_origen, ruta_destino):
                 "El archivo Word generado esta vacio."
             )
 
-         # Publicar el documento sin sobrescribir.
-        # Solo eliminaremos el destino si esta
-        # operacion fue quien lo creo.
-        destino_creado = False
+        validar_documento_word(temporal)
 
+        # 5. Publicar sin copiar ni sobrescribir.
         try:
-            with temporal.open("rb") as archivo_origen:
-                with destino.open("xb") as archivo_destino:
-                    destino_creado = True
+            os.link(temporal, destino)
 
-                    while True:
-                        bloque = archivo_origen.read(
-                            1024 * 1024
-                        )
+        except FileExistsError:
+            raise FileExistsError(
+                "Ya existe un documento en el destino."
+            )
 
-                        if not bloque:
-                            break
+        except OSError as error:
+            raise OSError(
+                "No se pudo publicar el documento. "
+                "Comprueba los permisos y que el sistema "
+                "de archivos admita enlaces fisicos."
+            ) from error
 
-                        archivo_destino.write(bloque)
-
-            return str(destino)
-
-        except Exception:
-            if destino_creado:
-                destino.unlink(missing_ok=True)
-
-            raise
+        return str(destino)
 
     finally:
+        # 6. Cerrar el conversor si sigue abierto.
         if conversor is not None:
             conversor.close()
 
+        # 7. Limpiar el nombre temporal.
         temporal.unlink(missing_ok=True)
