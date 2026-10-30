@@ -278,3 +278,312 @@ DocLab es un proyecto de aprendizaje y desarrollo incremental. Su estructura bus
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+
+
+# DocLab avances de proyecto
+
+**Laboratorio documental de escritorio desarrollado en Python y PySide6.**
+
+DocLab es una aplicación de escritorio orientada a la conversión y gestión de documentos. Su primera funcionalidad es convertir archivos **PDF a Word (`.docx`)**, mediante una interfaz gráfica moderna, con procesamiento en segundo plano y un motor de conversión separado de la presentación.
+
+El proyecto se desarrolla de forma incremental, priorizando la mantenibilidad del código, la protección de archivos y las pruebas automatizadas. La visión a largo plazo es integrar herramientas para unir y dividir PDF, compresión, OCR, comparación de documentos y análisis documental.
+
+> **Estado del proyecto:** versión inicial en desarrollo. Conversión PDF → DOCX implementada y probada; 13 pruebas automatizadas aprobadas según la última ejecución comunicada. Algunas funciones descritas como futuras todavía no están disponibles.
+
+## Características implementadas
+
+### Interfaz gráfica
+
+- Interfaz de escritorio desarrollada con **PySide6 (Qt for Python)**.
+- Pantalla de inicio y vista dedicada a la conversión de PDF a Word.
+- Menú lateral de navegación y estilo oscuro personalizable mediante **QSS**.
+- Selección de documentos desde el explorador del sistema y zona de arrastrar y soltar archivos PDF.
+- Selección de la ruta de destino para guardar el documento Word.
+- Barra de actividad indeterminada mientras se realiza la conversión.
+- Mensajes de éxito y error para informar sobre el resultado del proceso.
+- Opciones de herramientas futuras visibles como funciones aún no disponibles.
+
+### Conversión PDF a Word
+
+- Conversión de documentos PDF a archivos **`.docx`** mediante la biblioteca `pdf2docx`.
+- Separación entre interfaz, servicio de conversión y motor documental.
+- Ejecución en un hilo de trabajo con **`QThread`** para evitar bloquear la interfaz durante tareas prolongadas.
+- Validaciones de existencia de archivos, extensión de origen y destino, carpeta de salida y protección contra sobrescrituras.
+- Escritura inicial en un archivo temporal, validación estructural del DOCX generado y publicación final por enlace físico mediante `os.link()`.
+- Limpieza de archivos temporales ante la finalización normal o las excepciones controladas.
+
+**Limitaciones:** la conversión no garantiza fidelidad visual absoluta en documentos complejos. La publicación por `os.link()` depende de que el sistema de archivos de destino admita enlaces físicos; no existe una copia alternativa automática. La resistencia ante apagones, cierres forzosos y fallas del sistema operativo no es absoluta.
+
+### Validación de archivos PDF
+
+El módulo `pdf_validator.py` realiza comprobaciones previas al procesamiento:
+
+- Verifica que exista el archivo y tenga extensión `.pdf`.
+- Intenta abrirlo como PDF mediante **PyMuPDF**.
+- Detecta documentos que requieren contraseña, utilizando `needs_pass`.
+- Rechaza documentos sin páginas.
+- Intenta cargar todas las páginas para identificar ciertos problemas de lectura.
+- Distingue excepciones propias: `PDFProtegidoError` y `PDFCorruptoError`.
+
+El servicio `conversion_service.py` integra este validador antes de llamar al motor de conversión. El trabajador contempla mensajes diferenciados para PDF protegidos o corruptos. **La validación no implica detección exhaustiva de toda corrupción posible y el recorrido completo desde la interfaz aún requiere verificación manual específica.**
+
+### Registro y control de ejecución
+
+- Sistema de registros con `logging` y `RotatingFileHandler`.
+- Registro de inicio, finalización y tipo de error de las conversiones.
+- Archivos rotativos de hasta aproximadamente 1 MB, con tres copias de respaldo configuradas.
+- Carpeta local de registros: `~/.doclab/logs/doclab.log`.
+- Evita registrar automáticamente los nombres o rutas completas de documentos en los mensajes diseñados para el trabajador.
+- La ventana principal contempla `closeEvent()` para impedir el cierre normal de la aplicación mientras una conversión continúa ejecutándose.
+
+> La protección de cierre normal no equivale a cancelación segura ni evita la terminación forzosa de procesos.
+
+## Tecnologías principales
+
+| Tecnología | Propósito |
+| --- | --- |
+| Python 3.13 | Lenguaje principal de la aplicación |
+| PySide6 / Qt Widgets | Interfaz gráfica de escritorio |
+| QSS | Estilos visuales |
+| `pdf2docx` | Motor inicial de conversión PDF → DOCX |
+| PyMuPDF (`pymupdf`) | Apertura, lectura, validación y creación de PDF de prueba |
+| `zipfile` | Inspección estructural básica del contenedor DOCX |
+| `QThread` y señales Qt | Trabajo en segundo plano y notificación de resultados |
+| `logging` | Diagnóstico y registro de eventos |
+| `pytest` | Pruebas automatizadas |
+| `python-docx` | Lectura del contenido Word en pruebas de integración |
+| `setuptools` / `pyproject.toml` | Configuración e instalación editable del proyecto |
+| Git y GitHub | Control de versiones |
+
+> `pdf2docx` es una dependencia del prototipo inicial y su mantenimiento futuro deberá evaluarse antes de distribuir el software ampliamente.
+
+## Organización del proyecto
+
+La estructura modular desarrollada hasta ahora sigue esta disposición aproximada:
+
+```text
+DocLab/
+├── src/
+│   └── doclab/
+│       ├── __init__.py
+│       ├── main.py
+│       ├── ui/
+│       │   ├── main_window.py
+│       │   ├── pages/
+│       │   │   ├── home_page.py
+│       │   │   └── converter_page.py
+│       │   ├── widgets/
+│       │   │   └── file_drop_widget.py
+│       │   └── styles/
+│       │       └── theme.qss
+│       ├── services/
+│       │   └── conversion_service.py
+│       ├── document_engine/
+│       │   ├── pdf_to_word.py
+│       │   └── pdf_validator.py
+│       ├── workers/
+│       │   └── conversion_worker.py
+│       └── infrastructure/
+│           └── logger.py
+├── tests/
+│   ├── test_pdf_to_word.py
+│   ├── test_pdf_validator.py
+│   └── test_integracion_pdf.py
+├── .gitignore
+├── pyproject.toml
+└── README.md
+```
+
+**Nota:** el archivo de integración se encontraba anteriormente en `tests/tests/test_integracion_pdf.py`. Si todavía está allí, se recomienda moverlo a `tests/test_integracion_pdf.py`. Las carpetas de paquetes Python pueden incluir sus correspondientes archivos `__init__.py`.
+
+### Responsabilidades por módulo
+
+| Archivo | Responsabilidad |
+| --- | --- |
+| `main.py` | Inicializa el sistema de logging, carga el tema QSS y lanza la aplicación Qt |
+| `ui/main_window.py` | Contenedor principal, navegación y control del cierre normal |
+| `ui/pages/home_page.py` | Presentación de herramientas y acceso a la conversión |
+| `ui/pages/converter_page.py` | Selección del documento, elección de salida, barra de actividad y avisos |
+| `ui/widgets/file_drop_widget.py` | Componente reutilizable para seleccionar o soltar PDF |
+| `ui/styles/theme.qss` | Colores, tipografía y apariencia de la aplicación |
+| `services/conversion_service.py` | Coordina validación y conversión |
+| `document_engine/pdf_validator.py` | Revisa la legibilidad inicial y protección de documentos PDF |
+| `document_engine/pdf_to_word.py` | Convierte y valida el DOCX; gestiona archivos temporales y publicación |
+| `workers/conversion_worker.py` | Ejecuta el servicio en `QThread` y emite señales de resultado |
+| `infrastructure/logger.py` | Configura registros locales con rotación |
+
+## Flujo de conversión
+
+```text
+Usuario selecciona o arrastra un PDF
+                  |
+                  v
+       Interfaz PySide6
+       (converter_page.py)
+                  |
+                  v
+      Trabajador QThread
+     (conversion_worker.py)
+                  |
+                  v
+      Servicio de conversión
+      (conversion_service.py)
+                  |
+          +-------+--------+
+          |                |
+          v                v
+    Validar PDF      Convertir PDF
+ (pdf_validator.py)  (pdf_to_word.py)
+          |                |
+          |         Generar temporal
+          |         Validar DOCX
+          |         Publicar salida
+          +-------+--------+
+                  |
+                  v
+      Señal de éxito o error
+                  |
+                  v
+       Interfaz informa resultado
+```
+
+El usuario selecciona un PDF y la ubicación de salida. El trabajador inicia la operación sin bloquear la interfaz; el servicio valida primero el PDF y luego solicita la conversión. El motor genera y valida un DOCX temporal antes de publicarlo, y las señales Qt permiten comunicar el resultado a la vista.
+
+## Instalación y ejecución
+
+### Requisitos
+
+- Python 3.13, conforme a la configuración inicial de `pyproject.toml`.
+- Git (para clonar el repositorio).
+- Windows es el entorno donde se ha desarrollado y probado hasta la fecha.
+
+### Configuración con Git Bash (Windows)
+
+```bash
+git clone https://github.com/TU_USUARIO/DocLab.git
+cd DocLab
+
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -e ".[dev]"
+```
+
+> Sustituye `TU_USUARIO` por la cuenta correspondiente antes de publicar el README. Si deseas instalar solo la aplicación, utiliza `python -m pip install -e .`.
+
+### Iniciar DocLab
+
+```bash
+doclab
+```
+
+También puede ejecutarse con:
+
+```bash
+python -m doclab.main
+```
+
+### Uso básico
+
+1. Abre DocLab.
+2. Selecciona **Convertir** desde la navegación lateral o desde Inicio.
+3. Selecciona o arrastra un archivo PDF.
+4. Presiona **Convertir a Word** y elige una ubicación y nombre de salida.
+5. Espera a que termine el procesamiento.
+6. Revisa el documento `.docx` y verifica su formato y contenido.
+
+**Consejo:** para las primeras conversiones, utiliza PDF con texto seleccionable y sin protección. Los PDF escaneados necesitarán un módulo OCR futuro.
+
+## Pruebas automatizadas
+
+Se utilizan pruebas unitarias y de integración con `pytest`.
+
+Para ejecutarlas:
+
+```bash
+python -m pytest -v
+```
+
+### Cobertura funcional de la suite actual
+
+**Motor de conversión (`test_pdf_to_word.py`):**
+
+1. Rechaza un PDF inexistente.
+2. Rechaza una extensión de origen incorrecta.
+3. Rechaza una extensión de destino incorrecta.
+4. Evita sobrescribir un archivo existente.
+5. Detecta una carpeta de destino inexistente.
+6. Publica un documento simulado sin dejar temporales.
+7. Rechaza un DOCX simulado corrupto sin publicarlo.
+8. Protege un destino creado simultáneamente por otro proceso.
+
+**Integración PDF → DOCX (`test_integracion_pdf.py`):**
+
+9. Genera un PDF de ejemplo, lo convierte con el motor real, abre el Word resultante y comprueba la presencia del texto esperado.
+
+**Validador (`test_pdf_validator.py`):**
+
+10. Acepta un PDF válido.
+11. Rechaza un PDF inexistente.
+12. Rechaza un archivo de texto con extensión `.pdf`.
+13. Detecta un PDF cifrado que requiere contraseña.
+
+**Último resultado comunicado:** 13 pruebas aprobadas. Este estado describe la última ejecución reportada durante el desarrollo; el resultado de futuras versiones deberá comprobarse ejecutando nuevamente la suite.
+
+### Advertencia conocida
+
+Durante las pruebas puede aparecer un `FutureWarning` asociado al nombre antiguo `fitz` que utiliza una dependencia indirecta. Para código propio se utiliza `import pymupdf`. La advertencia no equivale por sí sola a una prueba fallida.
+
+## Limitaciones y aspectos pendientes
+
+- La conversión puede modificar el diseño original de documentos con varias columnas, tablas complejas, formularios o imágenes.
+- Los PDF escaneados no disponen todavía de un flujo OCR integrado.
+- Los PDF protegidos con contraseña se detectan y rechazan; no existe todavía una opción de autenticación para el usuario.
+- La validación de PDF identifica ciertos errores, pero no garantiza que todos los documentos dañados sean detectados de antemano.
+- La verificación estructural del DOCX no implica que todos sus elementos visuales estén correctos.
+- La publicación por enlaces físicos puede fallar en sistemas de archivos que no los soporten.
+- La barra de actividad es indeterminada: todavía no indica porcentaje real.
+- No existe cancelación segura de trabajos ni recuperación integral tras apagados abruptos.
+- La integración del validador con los mensajes finales de la interfaz aún debe verificarse manualmente con PDF protegidos y corruptos.
+- La distribución en un instalador para usuarios finales aún no está implementada.
+
+## Hoja de ruta
+
+### Próximas mejoras técnicas
+
+- [ ] Verificar desde la interfaz los mensajes para PDF protegidos o corruptos.
+- [ ] Añadir pruebas automatizadas del servicio de conversión y del trabajador.
+- [ ] Mejorar limpieza y recuperación tras fallas y cierre inesperado.
+- [ ] Gestionar cancelación de operaciones de larga duración.
+- [ ] Incorporar progreso detallado y procesamiento masivo.
+- [ ] Preparar empaquetado e instalador para Windows.
+
+### Nuevas herramientas documentales
+
+- [ ] Unir y dividir archivos PDF.
+- [ ] Reordenar, rotar y extraer páginas.
+- [ ] Comprimir PDF.
+- [ ] Aplicar OCR a documentos escaneados.
+- [ ] Extraer imágenes y tablas.
+- [ ] Convertir entre otros formatos de documentos.
+- [ ] Comparar documentos y detectar cambios.
+- [ ] Evaluar la fidelidad visual de PDF → Word.
+- [ ] Crear recetas de automatización documental.
+- [ ] Explorar búsqueda documental y funciones de IA, preferiblemente con procesamiento local cuando sea viable.
+
+## Principios de diseño
+
+- **Separación de responsabilidades:** la interfaz presenta, el servicio coordina y el motor procesa.
+- **Modularidad:** cada herramienta documental debe poder evolucionar de manera independiente.
+- **Pruebas reproducibles:** emplear archivos temporales, documentos de ejemplo y simulaciones de error.
+- **Privacidad:** privilegiar procesamiento local y evitar registrar información confidencial de los documentos.
+- **Desarrollo incremental:** agregar nuevas capacidades sin comprometer las funciones estables.
+
+## Licencias y contribuciones
+
+La licencia de DocLab **aún no está definida**. Antes de distribuir públicamente versiones empaquetadas o comerciales se revisarán las licencias y condiciones aplicables a PySide6 y las dependencias documentales.
+
+Las propuestas de mejoras, reportes de errores y contribuciones pueden canalizarse mediante los mecanismos de GitHub que se habiliten en el repositorio.
+
+---
+
+**DocLab** — Proyecto en desarrollo, enfocado en construir herramientas documentales útiles, extensibles y verificables mediante pruebas automatizadas.
