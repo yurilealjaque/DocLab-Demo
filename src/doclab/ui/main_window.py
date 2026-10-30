@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from doclab.ui.pages.home_page import PaginaInicio
 from doclab.ui.pages.converter_page import PaginaConversor
+from PySide6.QtWidgets import QMessageBox
 
 
 class VentanaPrincipal(QMainWindow):
@@ -100,6 +101,8 @@ class VentanaPrincipal(QMainWindow):
 
         self.mostrar_pagina(0)
 
+
+
     def mostrar_pagina(self, indice):
         self.paginas.setCurrentIndex(indice)
 
@@ -123,3 +126,20 @@ class VentanaPrincipal(QMainWindow):
 
         if self.pagina_conversor.ruta_pdf == ruta:
             self.mostrar_pagina(1)
+
+    def closeEvent(self, evento):
+        trabajador = self.pagina_conversor.trabajador
+
+        if trabajador is not None and trabajador.isRunning():
+            QMessageBox.warning(
+                self,
+                "Conversion en proceso",
+                "DocLab esta convirtiendo un documento.\n\n"
+                "Para evitar interrupciones, espera a que "
+                "termine la conversion antes de cerrar."
+            )
+
+            evento.ignore()
+            return
+
+        evento.accept()
