@@ -928,3 +928,380 @@ La primera versión funcional de **conversión PDF → Word con OCR** está impl
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+
+# DocLab — Continuación del README: unión y división de PDF
+
+> **Actualización de octubre de 2026.** Este documento **continúa**, no sustituye, el `README.md` existente. Documenta los avances posteriores al capítulo sobre conversión PDF a Word con OCR. Los apartados antiguos del README se conservan como historial, aunque mencionen como «pendientes» herramientas que ya están implementadas.
+
+**Repositorio:** https://github.com/yurilealjaque/DocLab-Demo  
+**Entorno principal:** Windows, Python 3.13, PySide6, PyMuPDF, Git Bash, `.venv`.  
+**Estado:** prototipo funcional con conversión PDF a Word tradicional y OCR, unión de PDF y tres modalidades de división.  
+**Versión:** se propuso `v0.3.0` («PDF Split & Merge»). Su creación/publicación debe verificarse con `git tag --list` antes de afirmarla como definitiva.
+
+---
+
+## 1. Resumen de los avances
+
+Se incorporaron dos herramientas nuevas:
+
+- **Unir PDF:** seleccionar varios documentos, ordenar su secuencia y generar un archivo resultante.
+- **Dividir PDF:** extraer un rango continuo, elegir páginas específicas o separar todas las páginas en archivos independientes.
+
+Ambas siguen la arquitectura modular de DocLab:
+
+```text
+Interfaz PySide6
+       ↓
+Trabajador QThread (señales éxito/error)
+       ↓
+Servicio de aplicación
+       ↓
+Motor documental PyMuPDF
+       ↓
+Documento(s) PDF de salida
+```
+
+El menú lateral y la pantalla Inicio ofrecen acceso a **Convertir**, **Unir PDF** y **Dividir PDF**. Los estilos visuales siguen centralizados en QSS.
+
+## 2. Herramienta «Unir PDF»
+
+### 2.1. Motor documental
+
+**Ruta:** `src/doclab/document_engine/pdf_merger.py`
+
+- Exige como mínimo dos documentos PDF.
+- Valida entradas mediante el módulo reutilizable `pdf_validator.py`.
+- Detecta archivos inexistentes, corruptos o protegidos en los escenarios contemplados.
+- Respeta el orden de la lista seleccionada.
+- Genera y valida el PDF resultante, incluida su cantidad de páginas.
+- Utiliza archivos temporales y publicación sin sobrescritura mediante `os.link()`.
+- Limpia temporales al finalizar y ante excepciones controladas.
+
+**Precisión:** inicialmente se utilizó `insert_pdf()`; ante una incidencia de pérdida visual se ensayó una implementación con `show_pdf_page()`. **Este cambio no resolvió el problema**. Confirmar el algoritmo vigente consultando el código local antes de modificarlo nuevamente.
+
+### 2.2. Servicio y trabajador
+
+- `src/doclab/services/pdf_merge_service.py`: clase `ServicioUnionPDF`; método `unir(rutas_origen, ruta_destino)`.
+- `src/doclab/workers/pdf_merge_worker.py`: clase `TrabajadorUnionPDF(QThread)`, con señales `union_exitosa(str)` y `union_fallida(str)`.
+- El servicio delega; el trabajador procesa en un hilo secundario y notifica a la interfaz.
+
+### 2.3. Pantalla gráfica
+
+**Ruta:** `src/doclab/ui/pages/pdf_merge_page.py`
+
+- Selección de varios archivos con `QFileDialog`.
+- Lista de documentos y contador.
+- Evita duplicados por ruta normalizada.
+- Reordenamiento con «Subir» y «Bajar» y eliminación de la selección sin borrar originales.
+- Sincronización entre el orden visual y la lista `rutas_pdf`.
+- Selección de destino, prevención de sobrescritura, barra de actividad, mensajes de éxito/error.
+- Desactivación temporal de controles durante la operación.
+- Acceso desde el menú lateral y desde Inicio.
+
+### 2.4. Incidencia conocida: DOC-001 — Pérdida de contenido visual
+
+**Caso comunicado:** unión de tres documentos reales:
+
+| Documento | Páginas |
+| --- | ---: |
+| `Guia_Exhaustiva_QA_Clase_8_Bruno.pdf` | 56 |
+| `Manual_profesional_QA_Bruno_Clase_9_AMPLIADO.pdf` | 39 |
+| `Dieta y colelitiasis.pdf` | 2 |
+| **Total** | **97** |
+
+El resultado contiene **97 páginas**, pero la **página 96** (primera del tercer documento) aparece en gran parte vacía o pierde contenido visual. PyMuPDF puede extraer texto de la página original; esto no demuestra que el original esté defectuoso. Se requiere diagnóstico.
+
+**Intento no concluyente:** cambiar la copia de páginas a `show_pdf_page()` no resolvió la incidencia.
+
+**Investigación pendiente:**
+
+1. Comparar la página original y la página 96 mediante imágenes renderizadas con `get_pixmap()` a igual resolución.
+2. Comparar texto con `get_text()` y examinar sus coordenadas.
+3. Inspeccionar recursos, fuentes, imágenes, anotaciones, transparencia y capas opcionales de los documentos.
+4. Preparar un PDF de ejemplo reproducible y redistribuible para crear una prueba de regresión.
+5. Evaluar alternativas solo después de identificar el origen del problema.
+6. No interpretar el recuento correcto de páginas como garantía de fidelidad visual.
+
+**Prioridad:** importante antes de distribuir la aplicación a terceros.
+
+## 3. Herramienta «Dividir PDF»
+
+### 3.1. Motor documental
+
+**Ruta:** `src/doclab/document_engine/pdf_splitter.py`
+
+Se incorporaron tres funciones públicas:
+
+#### A. `extraer_rango_pdf(ruta_origen, ruta_destino, pagina_inicio, pagina_fin)`
+
+Extrae un intervalo continuo e **incluye ambos extremos**. Las páginas que indica el usuario empiezan en 1, mientras que PyMuPDF trabaja internamente con índices desde 0.
+
+```python
+extraer_rango_pdf("clase.pdf", "resumen.pdf", 3, 7)
+# Genera cinco páginas: 3, 4, 5, 6 y 7.
+```
+
+Valida tipos enteros, límites, orden del rango, existencia del archivo de origen, destino adecuado, carpeta existente y no sobrescritura. Trabaja con un archivo temporal, verifica el número de páginas y publica mediante `os.link()`.
+
+#### B. `extraer_paginas_pdf(ruta_origen, ruta_destino, paginas)`
+
+Extrae páginas individuales en el orden elegido:
+
+```python
+extraer_paginas_pdf("clase.pdf", "seleccion.pdf", [1, 4, 8])
+```
+
+- Admite una lista o tupla no vacía.
+- Rechaza elementos no enteros, repetidos o fuera del documento.
+- Conserva el orden recibido, incluso si es `[8, 1, 4]`.
+- Verifica la cantidad de páginas resultante.
+- Evita sobrescritura y limpia el temporal.
+
+**Decisión actual:** no permitir duplicados en la selección para evitar repeticiones accidentales.
+
+#### C. `separar_paginas_pdf(ruta_origen, carpeta_destino)`
+
+Produce un PDF por cada página. Ejemplo para un archivo de cuatro páginas:
+
+```text
+informe_pagina_001.pdf
+informe_pagina_002.pdf
+informe_pagina_003.pdf
+informe_pagina_004.pdf
+```
+
+- La carpeta destino debe existir.
+- Verifica previamente los nombres de salida para evitar colisiones.
+- Genera y valida cada PDF en una carpeta `TemporaryDirectory()`.
+- Publica mediante `os.link()`; si falla durante la publicación, intenta retirar únicamente los archivos que la operación creó.
+- No garantiza atomicidad ante apagones, interrupción forzosa u operaciones externas concurrentes.
+
+### 3.2. Servicio de división
+
+**Ruta:** `src/doclab/services/pdf_split_service.py`
+
+La clase `ServicioDivisionPDF` expone:
+
+- `extraer_rango(...)`
+- `extraer_paginas(...)`
+- `separar_todas(...)`
+
+Cada método delega en su función correspondiente del motor documental y propaga los errores, sin duplicar las validaciones.
+
+### 3.3. Trabajador QThread
+
+**Ruta:** `src/doclab/workers/pdf_split_worker.py`
+
+La clase `TrabajadorDivisionPDF(QThread)` recibe un modo:
+
+| Modo | Operación |
+| --- | --- |
+| `rango` | Extraer intervalo continuo |
+| `paginas` | Extraer selección de páginas |
+| `todas` | Generar un PDF por página |
+
+Emite `division_exitosa(object)` o `division_fallida(str)`. Normaliza los resultados a una lista de rutas (`list[str]`) tanto si el motor devuelve un único archivo como si genera muchos. Se probó que `start()` ejecuta el servicio fuera del hilo principal.
+
+### 3.4. Interfaz PySide6
+
+**Ruta:** `src/doclab/ui/pages/pdf_split_page.py`
+
+Clase `PaginaDivisionPDF(QWidget)`:
+
+- Selección de origen y validación con `validar_pdf()`.
+- Presentación del total de páginas.
+- Selector de modalidad (`QComboBox`).
+- Rango con `QSpinBox`.
+- Páginas específicas con `QLineEdit` y valores separados por coma.
+- Selección de archivo de salida o carpeta según corresponda.
+- Método `preparar_solicitud()` para validar antes de ejecutar.
+- `QProgressBar` indeterminado, mensajes de resultado y bloqueo de controles durante procesamiento.
+- Protección ante cierre individual de la página durante una operación activa.
+
+### 3.5. Integración con la ventana principal
+
+Se actualizaron:
+
+- `src/doclab/ui/main_window.py`: registro de `PaginaDivisionPDF`, botón lateral, navegación y controles de cierre durante conversión, unión y división.
+- `src/doclab/ui/pages/home_page.py`: señal `abrir_division_pdf = Signal()` y tarjeta habilitada.
+
+**Error de integración encontrado y corregido:** `AttributeError: 'PaginaInicio' object has no attribute 'abrir_division_pdf'`. La causa fue conectar la señal en `main_window.py` antes de declararla en `home_page.py`.
+
+El usuario confirmó que DocLab volvió a abrir, que la navegación se veía funcional y que las **tres modalidades de división** pasaron la revisión manual posterior.
+
+## 4. Calidad y pruebas automatizadas
+
+Se trabajó de forma incremental: implementar motor → probar → servicio → probar → trabajador → probar → interfaz → probar → integración manual.
+
+| Grupo | Pruebas comunicadas como aprobadas |
+| --- | ---: |
+| Motor de unión | 10 |
+| Servicio de unión | 2 |
+| Trabajador de unión | 3 |
+| Interfaz de unión | 6 |
+| **Subtotal unión** | **21** |
+| Motor de división | 15 |
+| Servicio de división | 4 |
+| Trabajador de división | 5 |
+| Interfaz de división | 9 |
+| **Subtotal división** | **33** |
+| **Total de pruebas descritas en estos grupos** | **54** |
+
+**Advertencia:** este subtotal por grupos **no equivale** al recuento confirmado de la suite completa en su estado actual. El usuario comunicó que toda la suite pasó, pero se debe consultar el resultado exacto al ejecutar nuevamente `pytest`.
+
+Estrategias utilizadas: PDF sintéticos identificables, rangos y valores límite, documentos corruptos/protegidos, hashes SHA-256 para integridad del original, `monkeypatch` para simular fallos de publicación, comprobación de limpieza de temporales, pruebas de señales y de ejecución real en hilo secundario, y estados de interfaz.
+
+```bash
+python -m pytest tests/test_pdf_splitter.py -v --tb=short
+python -m pytest tests/test_pdf_split_service.py -v --tb=short
+python -m pytest tests/test_pdf_split_worker.py -v --tb=short
+python -m pytest tests/test_pdf_split_page.py -v --tb=short
+python -m pytest -q --tb=short
+```
+
+**Pendientes de calidad:** pruebas de ciclo completo de eventos Qt, cancelación, cierres forzosos, rutas concurrentes, rendimiento con PDF grandes y regresión de fidelidad visual.
+
+## 5. Estructura ampliada del proyecto
+
+Los módulos de esta etapa complementan los de conversión y OCR del README anterior:
+
+```text
+src/doclab/
+├── document_engine/
+│   ├── pdf_merger.py
+│   └── pdf_splitter.py
+├── services/
+│   ├── pdf_merge_service.py
+│   └── pdf_split_service.py
+├── workers/
+│   ├── pdf_merge_worker.py
+│   └── pdf_split_worker.py
+└── ui/
+    ├── main_window.py
+    └── pages/
+        ├── home_page.py
+        ├── pdf_merge_page.py
+        └── pdf_split_page.py
+
+tests/
+├── test_pdf_merger.py
+├── test_pdf_splitter.py
+├── test_pdf_split_service.py
+├── test_pdf_split_worker.py
+└── test_pdf_split_page.py
+```
+
+Las pruebas de unión de servicio, trabajador e interfaz también existen; sus nombres exactos se deben confirmar en el árbol actual del repositorio si se reorganizaron.
+
+## 6. Git, tags y archivos locales
+
+Mensaje descriptivo propuesto para el commit de división:
+
+```text
+feat(pdf): implementar modulo completo de division y extraccion de paginas
+```
+
+Se propuso crear el tag `v0.3.0`, pero la existencia y publicación deben comprobarse:
+
+```bash
+git status
+git log -3 --oneline
+git tag --list --sort=-version:refname
+git show v0.3.0 --no-patch
+```
+
+El `.gitignore` excluye `pruebas_manuales/` y recursos OCR locales `src/doclab/resources/tessdata/*.traineddata`; no deben publicarse documentos privados ni modelos binarios innecesarios. Evitar ignorar todos los archivos `.pdf`, `.docx` o imágenes de manera global porque se podrían necesitar fixtures públicos para pruebas.
+
+## 7. Deuda técnica y limitaciones conocidas
+
+1. **DOC-001:** una página de un PDF unido pierde contenido visual; el uso de `show_pdf_page()` no resolvió la incidencia.
+2. La comprobación de cantidad de páginas no garantiza fidelidad del contenido.
+3. Advertencia sobre `fitz`: identificar importación directa o indirecta que aún utilice la API deprecada; preferir `import pymupdf` cuando corresponda.
+4. La barra de actividad es indeterminada, sin progreso porcentual real.
+5. No hay cancelación segura general para operaciones largas.
+6. `os.link()` depende de condiciones del sistema de archivos.
+7. Mejorar gestión de cierre y vida útil de `QThread` bajo errores y operaciones repetidas.
+8. Pruebas visuales, de accesibilidad y de rendimiento aún limitadas.
+9. No existe todavía instalador de Windows para usuario final.
+
+## 8. Hoja de ruta actualizada
+
+### Etapa 4 — Robustez y calidad (**próxima etapa acordada**)
+
+- [ ] Diagnosticar DOC-001 comparando texto, recursos y renderizado de páginas original/salida.
+- [ ] Crear prueba de regresión con un documento reproducible y apto para el repositorio.
+- [ ] Corregir solo después de disponer de evidencia del origen.
+- [ ] Verificar cierre seguro, señales y ciclo de vida de trabajadores.
+- [ ] Revisar errores de publicación y limpieza de archivos temporales.
+- [ ] Localizar el origen de la advertencia `fitz`.
+- [ ] Ejecutar suite completa y comprobar resultados manualmente.
+
+### Etapa 5 — Experiencia de usuario
+
+- [ ] Progreso real cuando el motor permita medirlo.
+- [ ] Mejorar mensajes y facilitar apertura de resultados.
+- [ ] Evaluar vista previa de páginas y optimización de interfaz.
+
+### Etapa 6 — Funcionalidades nuevas (**por debatir**) 
+
+La lista anterior de herramientas genéricas **no está cerrada**. El usuario propone una función especialmente útil: **convertir fotos tomadas en clases a PDF**.
+
+#### Propuesta de producto: Fotografías de clases → PDF
+
+**Necesidad:** el estudiante fotografía diapositivas de PowerPoint proyectadas en una pizarra o pantalla porque no dispone del archivo original. Quiere reunir esas fotografías en un documento ordenado y legible para estudiar.
+
+**MVP sugerido:**
+
+1. Importar múltiples fotos JPG, JPEG y PNG desde cámara o celular.
+2. Mostrar miniaturas y permitir reordenar, quitar y girar fotos.
+3. Respetar orientación EXIF.
+4. Crear un PDF con una imagen por página y orientación/tamaño configurables.
+5. Guardar localmente sin sobrescribir documentos.
+6. Validar el PDF generado y probar distintos tamaños/resoluciones.
+
+**Mejoras posteriores que requieren más investigación:**
+
+- Detección de bordes de una diapositiva proyectada.
+- Corrección de perspectiva para fotos tomadas desde un costado del aula.
+- Recorte de pared, pizarra, mesas u otros elementos ajenos a la proyección.
+- Ajuste moderado de contraste, iluminación y nitidez.
+- OCR opcional para hacer el PDF buscable.
+- Gestión de fotografías borrosas, reflejos, sombras y texto ilegible.
+- Compatibilidad HEIC/HEIF según bibliotecas disponibles.
+
+**Límite de alcance:** producir un PDF de fotografías legibles **no equivale** a reconstruir un PowerPoint original y editable. Tampoco es posible recuperar fielmente información que la cámara no capturó por desenfoque, saturación o recorte.
+
+**Arquitectura posible:** `PaginaFotosPDF` → `TrabajadorFotosPDF` → `ServicioFotosPDF` → motor de imágenes/PDF, reutilizando la organización existente. Se debe debatir su ubicación y prioridad con el usuario antes de codificar.
+
+### Etapa 7 — Distribución en Windows
+
+- [ ] Preparar empaquetado e inclusión de recursos OCR.
+- [ ] Validar en Windows sin Python de desarrollo.
+- [ ] Preparar instalador, revisar licencias y dependencias.
+
+## 9. Contexto para continuar en una conversación nueva
+
+**Proyecto:** DocLab, aplicación local Python 3.13/PySide6 en Windows, con arquitectura UI → QThread → Servicio → Motor.
+
+**GitHub:** https://github.com/yurilealjaque/DocLab-Demo.
+
+**Funcionalidades funcionales:** PDF→Word tradicional y OCR; Unir PDF con incidencia visual abierta; Dividir PDF con tres modalidades probadas.
+
+**Estilo de colaboración:** explicaciones didácticas en español chileno, variables en español, cambios incrementales, scripts completos cuando se soliciten, indicar rutas exactas, `pytest` tras cada incremento, protección de código estable y no atribuir errores a una causa sin demostrarla.
+
+**Al retomar:** revisar README histórico y esta continuación, consultar el código más reciente del repo o los archivos locales antes de sugerir reemplazos y comenzar Etapa 4 por diagnóstico de fidelidad. La nueva idea de **fotografías de clases a PDF** queda anotada para debatir y diseñar en la Etapa 6.
+
+**Comandos útiles:**
+
+```bash
+source .venv/Scripts/activate
+doclab
+python -m pytest -q --tb=short
+git status
+git log -1 --oneline
+git tag --list --sort=-version:refname
+```
+
+---
+
+**DocLab — Convierte, organiza y transforma tus documentos.**
