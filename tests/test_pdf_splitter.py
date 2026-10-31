@@ -434,3 +434,138 @@ def test_separacion_limpia_si_falla_publicacion(
 
     # No deben quedar resultados parciales.
     assert list(carpeta_salida.iterdir()) == []
+
+    
+def test_no_sobrescribe_archivo_creado_durante_extraccion(
+    tmp_path,
+    monkeypatch
+):
+    """
+    Simula que otro programa crea el destino
+    justo antes de publicar el PDF extraido.
+
+    Comprueba que DocLab no lo sobrescriba.
+    """
+
+    origen = tmp_path / "original.pdf"
+    destino = tmp_path / "resultado.pdf"
+
+    crear_pdf(origen, 5)
+
+    contenido_externo = b"Archivo creado por otro programa"
+
+    def simular_colision(temporal, ruta_destino):
+        # Otro programa crea el archivo antes
+        # de que DocLab pueda publicarlo.
+        ruta_destino.write_bytes(contenido_externo)
+
+        raise FileExistsError(
+            "El archivo ya existe."
+        )
+
+    monkeypatch.setattr(
+        modulo_division.os,
+        "link",
+        simular_colision
+    )
+
+    with pytest.raises(FileExistsError):
+        extraer_rango_pdf(
+            origen,
+            destino,
+            2,
+            4
+        )
+
+    # El archivo externo debe permanecer intacto.
+    assert destino.read_bytes() == contenido_externo
+
+    # No deben quedar temporales.
+    assert list(
+        tmp_path.glob("doclab_division_*.pdf")
+    ) == []
+
+
+def test_separacion_con_colision_conserva_archivo_externo(
+    tmp_path,
+    monkeypatch
+):
+    """
+    Simula que aparece un archivo externo
+    durante la publicacion de varias paginas.
+
+    Comprueba que:
+    - Se retiran las salidas parciales de DocLab.
+    - No se elimina el archivo externo.
+    - El PDF original permanece intacto.
+    """
+
+    origen = tmp_path / "original.pdf"
+
+    carpeta_salida = tmp_path / "salida"
+    carpeta_salida.mkdir()
+
+    crear_pdf(origen, 3)
+
+    contenido_original = origen.read_bytes()
+    contenido_externo = b"Documento externo protegido"
+
+    enlace_original = modulo_division.os.link
+    llamadas = 0
+
+    def simular_colision(temporal, destino):
+        nonlocal llamadas
+
+        llamadas += 1
+
+        if llamadas == 2:
+            # Otro programa crea el segundo archivo
+            # antes de su publicacion.
+            destino.write_bytes(contenido_externo)
+
+            raise FileExistsError(
+                "Archivo creado por otro programa."
+            )
+
+        return enlace_original(temporal, destino)
+
+    monkeypatch.setattr(
+        modulo_division.os,
+        "link",
+        simular_colision
+    )
+
+    with pytest.raises(FileExistsError):
+        separar_paginas_pdf(
+            origen,
+            carpeta_salida
+        )
+
+    archivo_externo = (
+        carpeta_salida / "original_pagina_002.pdf"
+    )
+
+    # Debe conservarse el archivo externo.
+    assert archivo_externo.read_bytes() == (
+        contenido_externo
+    )
+
+    # Debe retirarse la primera pagina
+    # que DocLab alcanzo a publicar.
+    assert not (
+        carpeta_salida / "original_pagina_001.pdf"
+    ).exists()
+
+    # No debe generarse la tercera pagina.
+    assert not (
+        carpeta_salida / "original_pagina_003.pdf"
+    ).exists()
+
+    # El archivo original no debe cambiar.
+    assert origen.read_bytes() == contenido_original
+
+    # La carpeta temporal debe haberse eliminado.
+    assert list(
+        carpeta_salida.glob("doclab_division_*")
+    ) == []
+
