@@ -101,3 +101,6 @@ pruebas_manuales/
 # Resultados locales de conversion.
 *.docx.bak
 *.docx.tmp
+
+# Documentos utilizados en pruebas manuales locales
+pruebas_manuales/
