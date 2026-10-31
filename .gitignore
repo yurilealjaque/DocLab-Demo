@@ -77,3 +77,27 @@ coverage.xml
 *.autosave
 *.qmlc
 *.jsc
+
+# ==========================================
+# 13. Modelos OCR de Tesseract
+# ==========================================
+
+# No incluir modelos binarios en Git.
+# Se obtienen separadamente durante el desarrollo.
+src/doclab/resources/tessdata/*.traineddata
+
+# Mantener la estructura de carpetas en el repositorio.
+!src/doclab/resources/tessdata/.gitkeep
+
+
+# ==========================================
+# 14. Documentos locales para pruebas manuales
+# ==========================================
+
+# PDFs y Word guardados para pruebas locales.
+manual_tests/
+pruebas_manuales/
+
+# Resultados locales de conversion.
+*.docx.bak
+*.docx.tmp
