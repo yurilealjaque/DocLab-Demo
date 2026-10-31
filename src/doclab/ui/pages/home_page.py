@@ -1,4 +1,5 @@
 
+
 """
 Pantalla de inicio de DocLab.
 
@@ -25,9 +26,11 @@ class PaginaInicio(QWidget):
     Pantalla principal de bienvenida de DocLab.
     """
 
+    # Senales de navegacion.
     archivo_seleccionado = Signal(str)
     abrir_conversor = Signal()
     abrir_union_pdf = Signal()
+    abrir_division_pdf = Signal()
 
     def __init__(self):
         super().__init__()
@@ -89,6 +92,7 @@ class PaginaInicio(QWidget):
         herramientas = [
             ("PDF a Word", True),
             ("Unir archivos PDF", True),
+            ("Dividir archivos PDF", True),
             ("Comprimir PDF", False),
             ("Reconocimiento OCR", False),
         ]
@@ -118,7 +122,7 @@ class PaginaInicio(QWidget):
                 disponible
             )
 
-            # Cada herramienta dirige a su pantalla.
+            # Navegacion segun herramienta.
             if nombre == "PDF a Word":
                 boton.clicked.connect(
                     self.abrir_conversor.emit
@@ -129,11 +133,16 @@ class PaginaInicio(QWidget):
                     self.abrir_union_pdf.emit
                 )
 
+            elif nombre == "Dividir archivos PDF":
+                boton.clicked.connect(
+                    self.abrir_division_pdf.emit
+                )
+
             contenido.addWidget(
                 boton
             )
 
-            # Mostrar estado de herramientas futuras.
+            # Mostrar herramientas futuras.
             if not disponible:
                 estado = QLabel(
                     "Proximamente"
@@ -147,7 +156,7 @@ class PaginaInicio(QWidget):
                     estado
                 )
 
-            # Distribuir las tarjetas en dos columnas.
+            # Distribuir tarjetas en dos columnas.
             fila = indice // 2
             columna = indice % 2
 
@@ -158,24 +167,10 @@ class PaginaInicio(QWidget):
             )
 
         # 6. Organizacion de la pantalla.
-        diseno.addWidget(
-            titulo
-        )
-
-        diseno.addWidget(
-            descripcion
-        )
-
-        diseno.addWidget(
-            zona_archivos
-        )
-
-        diseno.addWidget(
-            subtitulo
-        )
-
-        diseno.addLayout(
-            cuadricula
-        )
+        diseno.addWidget(titulo)
+        diseno.addWidget(descripcion)
+        diseno.addWidget(zona_archivos)
+        diseno.addWidget(subtitulo)
+        diseno.addLayout(cuadricula)
 
         diseno.addStretch()
