@@ -587,3 +587,344 @@ Las propuestas de mejoras, reportes de errores y contribuciones pueden canalizar
 ---
 
 **DocLab** — Proyecto en desarrollo, enfocado en construir herramientas documentales útiles, extensibles y verificables mediante pruebas automatizadas.
+
+---
+
+# DocLab — Avances del proyecto: conversión PDF a Word con OCR
+
+> **Actualización del desarrollo — octubre de 2026.** Esta sección continúa el README original y documenta las funcionalidades implementadas después de la versión inicial del conversor. En caso de contradicción con apartados históricos anteriores (por ejemplo, referencias a OCR «pendiente» o a solamente 13 pruebas), **este apartado describe el estado más reciente comprobado**. No se elimina el historial de avances anterior.
+
+## Estado actual de la funcionalidad
+
+**Estado: primera versión funcional completada y validada.**
+
+DocLab permite elegir desde su interfaz gráfica entre dos modalidades de conversión de PDF a Word:
+
+1. **Conversión tradicional:** utiliza `pdf2docx`, especialmente orientada a PDF con texto digital y estructuras compatibles.
+2. **Conversión con OCR:** utiliza PyMuPDF y Tesseract integrado en el procesamiento OCR, con modelos de idioma locales para reconocer texto de páginas escaneadas e imágenes incrustadas, generar texto editable y conservar imágenes según la política actual de exportación.
+
+**Validación comunicada durante el desarrollo:**
+
+- **124 pruebas automatizadas aprobadas** mediante `pytest`.
+- **3 pruebas manuales de la interfaz aprobadas:** PDF digital en modo tradicional, PDF escaneado en modo OCR y PDF mixto en modo OCR.
+- No se comunicaron observaciones o fallos en estas tres pruebas manuales.
+
+Las pruebas confirman los escenarios ejercitados; no garantizan una conversión idéntica al original para todos los PDF posibles.
+
+## Funcionalidades nuevas
+
+### 1. Inspección y clasificación del contenido PDF
+
+- Validación previa del PDF, reutilizando el módulo existente `pdf_validator.py`.
+- Identificación de páginas con y sin texto seleccionable.
+- Clasificación de documentos como `con_texto`, `sin_texto` o `mixto`.
+- Detección de páginas con imágenes y páginas que combinan texto digital con imágenes.
+- Recuento de imágenes y registro de páginas donde aparecen.
+- Análisis de cobertura de imágenes para señalar **posibles** páginas escaneadas; esta clasificación es heurística y no constituye una certeza sobre la naturaleza del documento.
+
+**Módulos principales:** `pdf_content_detector.py`, `image_coverage.py` y `pdf_validator.py`.
+
+### 2. Reconocimiento óptico de caracteres (OCR)
+
+- Reconocimiento de palabras contenidas en imágenes de documentos PDF.
+- Idiomas inicialmente configurados: **español (`spa`) e inglés (`eng`)**.
+- Procesamiento de páginas escaneadas mediante OCR completo (`full=True`).
+- Procesamiento de páginas con texto digital e imágenes mediante OCR parcial (`full=False`).
+- Recuperación de texto por página y tratamiento explícito de errores de reconocimiento o de modelos de idioma ausentes.
+- Extracción de texto y coordenadas de fragmentos (`bbox`) a partir de los resultados OCR.
+- Distinción convencional entre texto digital y texto reconocido por OCR parcial mediante la fuente `GlyphLessFont` utilizada por PyMuPDF.
+- **Motor OCR unificado:** permite extraer el texto y sus posiciones utilizando el mismo objeto `TextPage`, evitando ejecutar OCR dos veces sobre cada página que lo requiere dentro de ese flujo.
+
+**Módulos principales:** `ocr_engine.py`, `ocr_document.py`, `ocr_text_blocks.py` y `ocr_unified.py`.
+
+> La detección de páginas con imágenes no significa que todas sus imágenes contengan texto; pueden producirse reconocimientos innecesarios. El orden de lectura del OCR puede requerir ajustes en documentos complejos.
+
+### 3. Análisis de estructura, imágenes y orden de lectura
+
+- Obtención de bloques de texto e imagen mediante la información estructurada de PyMuPDF.
+- Registro de coordenadas `(x0, y0, x1, y1)` y páginas de origen.
+- Recuperación de datos binarios y formato de imágenes que aparecen en el PDF.
+- Ordenamiento geométrico aproximado por número de página, posición vertical y posición horizontal.
+- Construcción de planes de reconstrucción de Word basados en bloques y, posteriormente, en fragmentos OCR con coordenadas.
+
+**Módulos principales:** `pdf_layout.py`, `pdf_image_extractor.py`, `pdf_reading_order.py`, `word_layout_plan.py` y `word_positioned_plan.py`.
+
+> El orden geométrico no equivale necesariamente al orden semántico de lectura en PDF con varias columnas, cuadros de texto superpuestos o diagramación compleja.
+
+### 4. Exportación de documentos Word editables
+
+Se implementaron distintas estrategias de exportación, conservadas de forma modular para permitir comparación y mejoras posteriores:
+
+| Módulo | Responsabilidad |
+| --- | --- |
+| `ocr_word_export.py` | Exporta a DOCX el texto obtenido por OCR, con separación entre páginas. |
+| `ocr_word_visual.py` | Exporta texto e imágenes; omite la imagen de página completa cuando se aplica OCR completo. |
+| `word_layout_export.py` | Genera el DOCX siguiendo un plan ordenado de bloques de texto e imágenes. |
+| `word_layout_plan.py` | Construye un plan inicial con posiciones aproximadas del texto OCR. |
+| `word_positioned_plan.py` | Construye un plan que utiliza las coordenadas recuperadas del texto OCR. |
+
+Características de la exportación avanzada:
+
+- Texto digital y texto OCR incorporados como contenido editable de Word.
+- Imágenes insertadas en línea cuando corresponde.
+- Saltos de página para conservar una separación aproximada respecto al PDF.
+- Omisión de la imagen completa del escaneo cuando se exporta su texto reconocido.
+- Asociación de imágenes a bloques mediante página y proximidad de coordenadas.
+- Generación en archivo temporal, validación del DOCX y publicación sin sobrescribir un destino existente.
+
+**Límite conocido:** mantener una imagen incrustada y exportar además sus palabras reconocidas puede producir duplicación *visual* del contenido. Tampoco se garantiza la ubicación exacta de las imágenes ni la reconstrucción íntegra de estilos, tablas y columnas.
+
+### 5. Servicio de conversión OCR e integración con la interfaz
+
+- **`services/ocr_conversion_service.py`:** define `ServicioConversionOCR`, responsable de coordinar el flujo completo desde un PDF hasta el DOCX.
+- **`workers/ocr_conversion_worker.py`:** define `TrabajadorConversionOCR`, basado en `QThread`, y emite las señales `conversion_exitosa` y `conversion_fallida`.
+- **`ui/pages/converter_page.py`:** incorpora un selector de modalidad con dos opciones: **Tradicional** y **Con OCR**.
+- Se conserva el trabajador y servicio de conversión tradicional, sin sustituir el motor `pdf2docx`.
+- Durante la operación se deshabilitan controles de selección y conversión, se muestra un indicador de actividad indeterminado y se comunican resultados o errores mediante la interfaz.
+- Se contemplan mensajes específicos para PDF protegidos o corruptos, recursos OCR faltantes, errores de reconocimiento y archivos de destino existentes.
+- La ventana principal mantiene su mecanismo de prevención de cierre normal mientras existe una conversión activa.
+
+## Flujo técnico de conversión
+
+```text
+Usuario selecciona un PDF en la interfaz PySide6
+                     |
+                     v
+            PaginaConversor
+                     |
+           Seleccion de modalidad
+                /         \
+               /           \
+              v             v
+       TRADICIONAL        CON OCR
+              |             |
+              v             v
+   TrabajadorConversion   TrabajadorConversionOCR
+              |             |
+              v             v
+   ServicioConversion     ServicioConversionOCR
+              |             |
+              v             v
+          pdf2docx     procesar_ocr_unificado()
+                            |
+                            v
+                     analizar_estructura_pdf()
+                            |
+                            v
+                     extraer_imagenes_pdf()
+                            |
+                            v
+                     crear_plan_word_posicionado()
+                            |
+                            v
+                     exportar_plan_a_word()
+               \           /
+                \         /
+                     v
+             Documento .docx
+                     |
+                     v
+           Senal de exito o error
+                     |
+                     v
+             Interfaz informa resultado
+```
+
+## Organización de los módulos incorporados
+
+Las siguientes rutas son relativas a `src/doclab/`:
+
+```text
+src/doclab/
+├── document_engine/
+│   ├── image_coverage.py
+│   ├── pdf_content_detector.py
+│   ├── ocr_engine.py
+│   ├── ocr_document.py
+│   ├── ocr_text_blocks.py
+│   ├── ocr_unified.py
+│   ├── ocr_word_export.py
+│   ├── ocr_word_visual.py
+│   ├── pdf_layout.py
+│   ├── pdf_image_extractor.py
+│   ├── pdf_reading_order.py
+│   ├── word_layout_plan.py
+│   ├── word_positioned_plan.py
+│   └── word_layout_export.py
+├── resources/
+│   └── tessdata/
+│       ├── .gitkeep
+│       ├── spa.traineddata    # Local, ignorado por Git
+│       └── eng.traineddata    # Local, ignorado por Git
+├── services/
+│   └── ocr_conversion_service.py
+├── workers/
+│   └── ocr_conversion_worker.py
+└── ui/
+    └── pages/
+        └── converter_page.py  # Selector Tradicional / Con OCR
+```
+
+Los archivos anteriores complementan los componentes ya descritos en el README original. `image_coverage.py` y `pdf_content_detector.py` se habían incorporado durante etapas intermedias del proyecto; aquí se registran junto al resto del flujo OCR.
+
+## Dependencias utilizadas en esta ampliación
+
+| Tecnología | Uso |
+| --- | --- |
+| PyMuPDF (`pymupdf`) | Apertura, inspección, OCR, extracción de imágenes y coordenadas. |
+| Tesseract integrado mediante PyMuPDF | Reconocimiento óptico local del texto de imágenes. |
+| `spa.traineddata` y `eng.traineddata` | Modelos locales para español e inglés. |
+| `python-docx` | Construcción, lectura y comprobación de documentos Word. |
+| `pdf2docx` | Motor independiente de la conversión tradicional. |
+| PySide6 / `QThread` / `Signal` | Interfaz gráfica, procesamiento fuera del hilo principal y comunicación de resultados. |
+| `pytest` | Pruebas unitarias y de integración. |
+
+La configuración de dependencias principales se actualizó en `pyproject.toml` para incluir `pymupdf` y `python-docx`. El desarrollo y pruebas se realizaron en Python 3.13 sobre Windows.
+
+## Instalación desde el repositorio: recursos OCR
+
+> **Importante:** el repositorio excluye deliberadamente los modelos de idioma `.traineddata`. El código puede clonarse desde GitHub, pero para utilizar el OCR en otro equipo de desarrollo hay que añadir manualmente los recursos.
+
+1. Clonar el repositorio:
+
+   ```bash
+   git clone https://github.com/yurilealjaque/DocLab-Demo.git
+   cd DocLab-Demo
+   ```
+
+2. Crear y activar el entorno virtual en Git Bash (Windows):
+
+   ```bash
+   python -m venv .venv
+   source .venv/Scripts/activate
+   ```
+
+3. Instalar DocLab con dependencias de desarrollo:
+
+   ```bash
+   python -m pip install -e ".[dev]"
+   ```
+
+4. Descargar los modelos oficiales `spa.traineddata` y `eng.traineddata` desde el proyecto [`tesseract-ocr/tessdata_fast`](https://github.com/tesseract-ocr/tessdata_fast) y colocarlos en:
+
+   ```text
+   src/doclab/resources/tessdata/
+   ```
+
+5. Ejecutar la aplicación:
+
+   ```bash
+   doclab
+   ```
+
+   La alternativa `python -m doclab.main` depende del punto de entrada implementado en la aplicación.
+
+El motor se desarrolló para utilizar recursos OCR locales a través de PyMuPDF y no depender de que el usuario de la aplicación instale manualmente `tesseract.exe` en el PATH. **Todavía no existe un instalador autónomo de Windows**: esa distribución se abordará al final del proyecto, junto con el empaquetado de dependencias y modelos.
+
+## Cómo utilizar las dos modalidades
+
+1. Abrir DocLab y acceder a **Convertir**.
+2. Seleccionar o arrastrar un documento PDF.
+3. Escoger una modalidad:
+   - **Tradicional:** recomendada para PDF digitales cuando se busca preservar mejor su maquetación.
+   - **Con OCR:** recomendada para documentos escaneados o PDF mixtos con palabras dentro de imágenes.
+4. Presionar **Convertir a Word**.
+5. Elegir un nombre y una ruta `.docx` que no estén ocupados.
+6. Esperar el resultado y revisar el documento final en Word.
+
+La modalidad OCR produce texto editable, pero no debe interpretarse como una reproducción visual exacta del PDF de origen.
+
+## Calidad y pruebas
+
+**Último estado confirmado: 124 pruebas automatizadas aprobadas.**
+
+La suite incluye escenarios sobre:
+
+- Validación de archivos PDF, protección por contraseña y errores de lectura.
+- Detección de texto, imágenes, cobertura y posibles escaneos.
+- Reconocimiento OCR real con archivos PDF generados por los tests.
+- Diferenciación entre páginas digitales, escaneadas, mixtas y vacías.
+- Recuperación de fragmentos de texto y sus coordenadas.
+- Comprobación de una ejecución OCR por página en el motor unificado.
+- Extracción de imágenes, estructura visual, orden de bloques y planes de reconstrucción.
+- Generación de DOCX, conservación de imágenes y protección frente a sobrescritura.
+- Pruebas de integración de PDF → OCR → Word y de los trabajadores de conversión.
+
+Para ejecutar la suite:
+
+```bash
+python -m pytest -v --tb=short
+```
+
+### Verificaciones manuales completadas
+
+| Caso | Modalidad | Resultado comunicado |
+| --- | --- | --- |
+| PDF con texto digital | Tradicional | Correcto |
+| PDF escaneado con palabras dentro de una imagen | Con OCR | Correcto |
+| PDF mixto con texto digital e imagen con palabras | Con OCR | Correcto |
+
+No se reportaron observaciones en esas tres comprobaciones. La cobertura de escenarios visuales complejos y documentos reales variados todavía es limitada.
+
+## Política de Git y archivos locales
+
+El archivo `.gitignore` excluye, entre otros elementos:
+
+- Entornos virtuales, cachés, logs y resultados temporales.
+- Archivos `.traineddata` ubicados en `src/doclab/resources/tessdata/`.
+- Carpetas locales de pruebas manuales y archivos de salida que coincidan con las reglas configuradas.
+
+La carpeta `tessdata` se representa mediante `.gitkeep` para conservar su ubicación sin publicar los modelos binarios. Los modelos permanecen en el equipo del desarrollador y deben obtenerse nuevamente al clonar el proyecto en otro entorno.
+
+> No deben incorporarse al repositorio documentos reales con datos confidenciales ni claves o configuraciones privadas.
+
+## Limitaciones conocidas de la primera versión OCR
+
+1. **Fidelidad visual:** tablas complejas, varias columnas, estilos tipográficos, encabezados, pies de página y elementos superpuestos pueden perder su distribución original.
+2. **Orden de lectura:** las coordenadas permiten una ordenación geométrica aproximada, pero no garantizan lectura semántica correcta en diseños complejos.
+3. **Imágenes con texto:** en PDF mixtos, el contenido de una imagen puede conservarse gráficamente y aparecer además como texto OCR editable, causando duplicación visual.
+4. **Formato de imágenes:** algunas estrategias de exportación admiten inicialmente PNG y JPEG y pueden rechazar otros formatos.
+5. **Rendimiento:** el OCR unificado elimina repeticiones del reconocimiento dentro de su flujo, pero el sistema aún puede abrir o inspeccionar el mismo documento varias veces.
+6. **Progreso:** la interfaz utiliza una barra indeterminada, sin porcentaje real por página.
+7. **Cancelación y cierres forzosos:** no hay un mecanismo completo de cancelación segura ni garantía de recuperación tras terminación abrupta.
+8. **Archivos de salida:** la publicación mediante `os.link()` depende de la compatibilidad del sistema de archivos; no garantiza portabilidad universal.
+9. **Reconocimiento:** los resultados dependen de la calidad del escaneo, resolución, idiomas y complejidad del contenido.
+10. **Identidad de resultados:** algunos componentes comprueban cantidades y números de páginas, pero todavía no verifican de forma criptográfica que todos los resultados intermedios provengan del mismo PDF.
+11. **Distribución:** no existe todavía ejecutable independiente ni instalador de Windows para usuarios finales.
+
+## Hoja de ruta actualizada
+
+### Funcionalidad PDF → Word
+
+- [x] Conversión tradicional con `pdf2docx`.
+- [x] Validación básica y protección frente a sobrescritura.
+- [x] Procesamiento en segundo plano e integración gráfica.
+- [x] Inspección y clasificación de contenido PDF.
+- [x] Reconocimiento OCR de documentos escaneados y mixtos.
+- [x] Procesamiento OCR de varias páginas.
+- [x] Recuperación de texto y coordenadas en un flujo unificado.
+- [x] Extracción de imágenes y análisis de estructura.
+- [x] Exportación de Word con texto editable e imágenes.
+- [x] Plan básico de reconstrucción y ordenamiento de bloques.
+- [x] Selector de modalidad tradicional / OCR en la interfaz.
+- [x] Suite de 124 pruebas automatizadas aprobadas.
+- [x] Tres escenarios manuales principales aprobados.
+
+### Mejoras futuras
+
+- [ ] Reconstrucción mejorada de tablas, columnas, estilos y maquetación.
+- [ ] Reducción de aperturas y recorridos repetidos de PDF.
+- [ ] Progreso detallado por página y cancelación segura.
+- [ ] Pruebas adicionales con documentos reales variados, archivos grandes y casos límite.
+- [ ] Comparación automática de fidelidad entre PDF original y DOCX.
+- [ ] Conversión por lotes e historial local de operaciones.
+- [ ] Nuevas herramientas: unir, dividir, rotar, reordenar y comprimir PDF.
+- [ ] Empaquetado como ejecutable autónomo, inclusión de modelos OCR e instalador de Windows **al final del proyecto**.
+
+## Alcance de este hito
+
+La primera versión funcional de **conversión PDF → Word con OCR** está implementada y validada en los escenarios descritos. Este hito cierra la integración básica del OCR, pero **no implica que el proyecto DocLab en su conjunto esté terminado**: su arquitectura permite continuar desarrollando nuevas herramientas y mejorar la fidelidad de conversión.
+
+---
+
+**DocLab — Convierte, organiza y transforma tus documentos.**
