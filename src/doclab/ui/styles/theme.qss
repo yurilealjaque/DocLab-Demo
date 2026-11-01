@@ -1,12 +1,4 @@
-
-/*
-====================================================
-DOCLAB — TEMA GRAFITO Y VIOLETA
-Etapa 5 — Rediseño visual, incremento 2
-====================================================
-*/
-
-/* ESTILO GENERAL */
+/* DocLab - Grafito y violeta. Etapa 5: legibilidad y consistencia. */
 
 QWidget {
     background-color: #121218;
@@ -15,14 +7,17 @@ QWidget {
     font-size: 14px;
 }
 
+/* Las etiquetas dejan ver el fondo del contenedor que las contiene. */
+QLabel {
+    background-color: transparent;
+}
+
 QToolTip {
     background-color: #302D3C;
     color: #F5F3FF;
     border: 1px solid #71638E;
     padding: 6px;
 }
-
-/* BARRA LATERAL */
 
 QFrame#barraLateral {
     background-color: #191922;
@@ -35,8 +30,6 @@ QLabel#logo {
     color: #C4B5FD;
     padding: 4px;
 }
-
-/* TIPOGRAFÍA */
 
 QLabel#tituloPagina {
     font-size: 28px;
@@ -51,11 +44,10 @@ QLabel#subtituloPagina {
 }
 
 QLabel#textoSecundario {
+    background-color: transparent;
     color: #BBB7CC;
     font-size: 13px;
 }
-
-/* ZONA DE SELECCIÓN DE ARCHIVOS */
 
 QFrame#zonaArchivos {
     background-color: #22212D;
@@ -67,10 +59,8 @@ QLabel#tituloZona {
     font-size: 19px;
     font-weight: bold;
     color: #F5F3FF;
-    background: transparent;
+    background-color: transparent;
 }
-
-/* TARJETAS DE HERRAMIENTAS */
 
 QFrame#tarjetaHerramienta {
     background-color: #232230;
@@ -79,7 +69,28 @@ QFrame#tarjetaHerramienta {
     padding: 10px;
 }
 
-/* BOTONES GENERALES */
+QFrame#estadoVacio {
+    background-color: #1D1C27;
+    border: 1px dashed #645676;
+    border-radius: 12px;
+}
+
+QLabel#iconoEstadoVacio {
+    color: #C4B5FD;
+    font-size: 25px;
+    font-weight: bold;
+}
+
+QLabel#tituloEstadoVacio {
+    color: #F5F3FF;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+QLabel#textoEstadoVacio {
+    color: #BBB7CC;
+    font-size: 13px;
+}
 
 QPushButton {
     background-color: #2D2D3B;
@@ -109,8 +120,6 @@ QPushButton:focus {
     border: 2px solid #A78BFA;
 }
 
-/* BOTONES PRINCIPALES */
-
 QPushButton#botonPrincipal {
     background-color: #8B5CF6;
     color: #FFFFFF;
@@ -132,8 +141,6 @@ QPushButton#botonPrincipal:disabled {
     color: #9993A9;
     border: 1px solid #464153;
 }
-
-/* BOTONES DEL MENÚ */
 
 QPushButton#botonMenu {
     background-color: transparent;
@@ -160,8 +167,6 @@ QPushButton#botonMenu:disabled {
     border: 1px solid transparent;
 }
 
-/* TARJETAS INTERACTIVAS */
-
 QPushButton#botonHerramienta {
     background-color: transparent;
     color: #F5F3FF;
@@ -178,8 +183,6 @@ QPushButton#botonHerramienta:disabled {
     background-color: transparent;
     color: #898397;
 }
-
-/* LISTAS */
 
 QListWidget {
     background-color: #1D1C27;
@@ -203,8 +206,6 @@ QListWidget::item:selected {
     background-color: #59418A;
     color: #FFFFFF;
 }
-
-/* CAMPOS DE ENTRADA Y SELECTORES */
 
 QLineEdit,
 QSpinBox,
@@ -250,8 +251,6 @@ QComboBox QAbstractItemView {
     selection-color: #FFFFFF;
     outline: none;
 }
-
-/* BARRAS DE PROGRESO */
 
 QProgressBar {
     background-color: #272432;

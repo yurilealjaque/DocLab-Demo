@@ -89,11 +89,9 @@ class VentanaPrincipal(QMainWindow):
 
         diseno_lateral.setSpacing(12)
 
-        # Logotipo.
         logo = QLabel("DocLab")
         logo.setObjectName("logo")
 
-        # Botones de navegacion.
         self.boton_inicio = QPushButton(
             "Inicio"
         )
@@ -118,7 +116,6 @@ class VentanaPrincipal(QMainWindow):
             "Historial"
         )
 
-        # Lista de botones laterales.
         botones_menu = [
             self.boton_inicio,
             self.boton_convertir,
@@ -128,13 +125,11 @@ class VentanaPrincipal(QMainWindow):
             boton_historial,
         ]
 
-        # Aplicar identificador QSS.
         for boton in botones_menu:
             boton.setObjectName(
                 "botonMenu"
             )
 
-        # Construir la barra lateral.
         diseno_lateral.addWidget(logo)
         diseno_lateral.addSpacing(30)
 
@@ -143,7 +138,6 @@ class VentanaPrincipal(QMainWindow):
                 boton
             )
 
-        # Herramientas futuras.
         boton_herramientas.setEnabled(False)
         boton_historial.setEnabled(False)
 
@@ -156,14 +150,10 @@ class VentanaPrincipal(QMainWindow):
         self.paginas = QStackedWidget()
 
         self.pagina_inicio = PaginaInicio()
-
         self.pagina_conversor = PaginaConversor()
-
         self.pagina_union = PaginaUnionPDF()
-
         self.pagina_division = PaginaDivisionPDF()
 
-        # Registrar las pantallas.
         self.paginas.addWidget(
             self.pagina_inicio
         )
@@ -247,11 +237,8 @@ class VentanaPrincipal(QMainWindow):
             )
         )
 
-        # Seleccionar un PDF desde Inicio
-        # y enviarlo al conversor.
-        self.pagina_inicio.archivo_seleccionado.connect(
-            self.abrir_archivo_en_conversor
-        )
+        # Ya no existe seleccion de PDF en Inicio.
+        # La seleccion se realiza en el conversor.
 
         # ---------------------------------------
         # 7. PANTALLA INICIAL
@@ -301,7 +288,6 @@ class VentanaPrincipal(QMainWindow):
             indice
         )
 
-        # Relacionar botones con pantallas.
         navegacion = [
             (
                 self.boton_inicio,
@@ -333,7 +319,6 @@ class VentanaPrincipal(QMainWindow):
                 esta_activo
             )
 
-            # Actualizar el QSS dinamico.
             boton.style().unpolish(
                 boton
             )
@@ -343,21 +328,6 @@ class VentanaPrincipal(QMainWindow):
             )
 
             boton.update()
-
-    def abrir_archivo_en_conversor(self, ruta):
-        """
-        Recibe un PDF seleccionado desde
-        Inicio y lo envia al conversor.
-        """
-
-        self.pagina_conversor.establecer_archivo(
-            ruta
-        )
-
-        if self.pagina_conversor.ruta_pdf == ruta:
-            self.navegar_a(
-                self.pagina_conversor
-            )
 
     def closeEvent(self, evento):
         """

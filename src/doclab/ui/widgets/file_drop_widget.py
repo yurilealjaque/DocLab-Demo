@@ -20,18 +20,28 @@ class ZonaArchivos(QFrame):
 
         self.setObjectName("zonaArchivos")
         self.setAcceptDrops(True)
-        self.setMinimumHeight(230)
+        # Altura compacta para aprovechar mejor el espacio.
+        self.setMinimumHeight(170)
+        self.setMaximumHeight(200)
 
         diseno = QVBoxLayout(self)
-        diseno.setSpacing(12)
 
-        titulo = QLabel("Arrastra tu archivo PDF aqui")
+# Espaciado y márgenes más equilibrados.
+        diseno.setContentsMargins(20, 16, 20, 16)
+        diseno.setSpacing(8)
+
+        titulo = QLabel("Arrastra aquí el PDF que deseas convertir")
         titulo.setObjectName("tituloZona")
         titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         descripcion = QLabel(
-            "Tambien puedes seleccionar un archivo desde tu equipo"
-        )
+    "O selecciona un documento desde tu equipo. "
+    "Se admiten archivos PDF."
+)
+        descripcion.setWordWrap(True)
+
+
+
         descripcion.setObjectName("textoSecundario")
         descripcion.setAlignment(Qt.AlignmentFlag.AlignCenter)
 

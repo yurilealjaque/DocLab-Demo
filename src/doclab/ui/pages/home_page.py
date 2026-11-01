@@ -1,24 +1,30 @@
 
-
 """
 Pantalla de inicio de DocLab.
 
-Presenta las herramientas disponibles
-y permite navegar hacia sus respectivas pantallas.
+Responsabilidades:
+- Dar la bienvenida al usuario.
+- Presentar las herramientas disponibles.
+- Explicar para que sirve cada herramienta.
+- Permitir navegar a Convertir, Unir y Dividir PDF.
+- Identificar las herramientas futuras.
+
+La seleccion y el arrastre de archivos se realizan
+en las pantallas de cada herramienta.
 """
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
-
-from doclab.ui.widgets.file_drop_widget import ZonaArchivos
 
 
 class PaginaInicio(QWidget):
@@ -26,151 +32,293 @@ class PaginaInicio(QWidget):
     Pantalla principal de bienvenida de DocLab.
     """
 
-    # Senales de navegacion.
-    archivo_seleccionado = Signal(str)
     abrir_conversor = Signal()
     abrir_union_pdf = Signal()
     abrir_division_pdf = Signal()
 
     def __init__(self):
         super().__init__()
-
         self.crear_interfaz()
 
-    def crear_interfaz(self):
+    def crear_tarjeta(
+        self,
+        icono,
+        nombre,
+        descripcion,
+        disponible=True,
+        accion=None
+    ):
         """
-        Construye los componentes visuales
-        de la pantalla de inicio.
+        Construye una tarjeta descriptiva.
+
+        Cada tarjeta informa al usuario sobre
+        la finalidad de una herramienta.
         """
 
-        diseno = QVBoxLayout(self)
+        tarjeta = QFrame()
+        tarjeta.setObjectName("tarjetaHerramienta")
+        tarjeta.setMinimumHeight(185)
 
-        diseno.setContentsMargins(
-            32, 32, 32, 32
+        contenido = QVBoxLayout(tarjeta)
+        contenido.setContentsMargins(20, 18, 20, 18)
+        contenido.setSpacing(10)
+
+        encabezado = QHBoxLayout()
+        encabezado.setSpacing(12)
+
+        etiqueta_icono = QLabel(icono)
+        etiqueta_icono.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+        etiqueta_icono.setFixedSize(44, 44)
+
+        etiqueta_icono.setStyleSheet(
+            "background-color: #35264F;"
+            "color: #D8C8FF;"
+            "border-radius: 10px;"
+            "font-size: 18px;"
+            "font-weight: bold;"
         )
 
-        diseno.setSpacing(18)
-
-        # 1. Titulo de bienvenida.
-        titulo = QLabel(
-            "Bienvenido a DocLab"
+        etiqueta_nombre = QLabel(nombre)
+        etiqueta_nombre.setWordWrap(True)
+        etiqueta_nombre.setStyleSheet(
+            "color: #F5F3FF;"
+            "font-size: 17px;"
+            "font-weight: bold;"
+            "background: transparent;"
         )
 
-        titulo.setObjectName(
-            "tituloPagina"
+        encabezado.addWidget(etiqueta_icono)
+        encabezado.addWidget(
+            etiqueta_nombre,
+            1
         )
 
-        # 2. Descripcion general.
-        descripcion = QLabel(
-            "Convierte, organiza y transforma tus documentos."
-        )
+        contenido.addLayout(encabezado)
 
-        descripcion.setObjectName(
+        etiqueta_descripcion = QLabel(descripcion)
+        etiqueta_descripcion.setWordWrap(True)
+        etiqueta_descripcion.setAlignment(
+            Qt.AlignmentFlag.AlignTop
+        )
+        etiqueta_descripcion.setObjectName(
             "textoSecundario"
         )
 
-        # 3. Zona para seleccionar archivos PDF.
-        zona_archivos = ZonaArchivos()
+        contenido.addWidget(etiqueta_descripcion)
+        contenido.addStretch()
 
-        zona_archivos.archivo_seleccionado.connect(
-            self.archivo_seleccionado.emit
+        if disponible:
+            boton = QPushButton("Abrir herramienta")
+            boton.setObjectName("botonPrincipal")
+            boton.setCursor(
+                Qt.CursorShape.PointingHandCursor
+            )
+
+            if accion is not None:
+                boton.clicked.connect(accion)
+
+        else:
+            boton = QPushButton("Próximamente")
+            boton.setEnabled(False)
+
+            tarjeta.setToolTip(
+                "Esta herramienta todavía no "
+                "se encuentra disponible."
+            )
+
+        contenido.addWidget(boton)
+
+        return tarjeta
+
+    def crear_interfaz(self):
+        """
+        Construye la pantalla de bienvenida
+        y el catalogo de herramientas.
+        """
+
+        diseno_principal = QVBoxLayout(self)
+        diseno_principal.setContentsMargins(
+            0, 0, 0, 0
+        )
+        diseno_principal.setSpacing(0)
+
+        # El desplazamiento evita que las tarjetas
+        # queden cortadas en ventanas pequeñas.
+        desplazamiento = QScrollArea()
+        desplazamiento.setWidgetResizable(True)
+        desplazamiento.setFrameShape(
+            QFrame.Shape.NoFrame
         )
 
-        # 4. Titulo de herramientas.
+        contenedor = QWidget()
+
+        diseno = QVBoxLayout(contenedor)
+        diseno.setContentsMargins(
+            32, 32, 32, 32
+        )
+        diseno.setSpacing(18)
+
+        # ---------------------------------------
+        # 1. BIENVENIDA
+        # ---------------------------------------
+
+        titulo = QLabel("Bienvenido a DocLab")
+        titulo.setObjectName("tituloPagina")
+
+        descripcion = QLabel(
+            "Tu espacio de trabajo para convertir, "
+            "organizar y transformar documentos."
+        )
+        descripcion.setObjectName(
+            "textoSecundario"
+        )
+        descripcion.setWordWrap(True)
+
+        instruccion = QLabel(
+            "Selecciona una herramienta para "
+            "comenzar. Cada opción te llevará "
+            "a su espacio de trabajo."
+        )
+        instruccion.setWordWrap(True)
+        instruccion.setStyleSheet(
+            "color: #D8D2E5;"
+            "font-size: 14px;"
+            "background: transparent;"
+        )
+
+        diseno.addWidget(titulo)
+        diseno.addWidget(descripcion)
+        diseno.addWidget(instruccion)
+
+        diseno.addSpacing(12)
+
+        # ---------------------------------------
+        # 2. HERRAMIENTAS DISPONIBLES
+        # ---------------------------------------
+
         subtitulo = QLabel(
-            "Herramientas"
+            "Herramientas disponibles"
         )
-
         subtitulo.setObjectName(
             "subtituloPagina"
         )
 
-        # 5. Cuadricula de herramientas.
-        cuadricula = QGridLayout()
-        cuadricula.setSpacing(12)
-
-        herramientas = [
-            ("PDF a Word", True),
-            ("Unir archivos PDF", True),
-            ("Dividir archivos PDF", True),
-            ("Comprimir PDF", False),
-            ("Reconocimiento OCR", False),
-        ]
-
-        for indice, (nombre, disponible) in enumerate(
-            herramientas
-        ):
-            tarjeta = QFrame()
-
-            tarjeta.setObjectName(
-                "tarjetaHerramienta"
-            )
-
-            contenido = QVBoxLayout(
-                tarjeta
-            )
-
-            boton = QPushButton(
-                nombre
-            )
-
-            boton.setObjectName(
-                "botonHerramienta"
-            )
-
-            boton.setEnabled(
-                disponible
-            )
-
-            # Navegacion segun herramienta.
-            if nombre == "PDF a Word":
-                boton.clicked.connect(
-                    self.abrir_conversor.emit
-                )
-
-            elif nombre == "Unir archivos PDF":
-                boton.clicked.connect(
-                    self.abrir_union_pdf.emit
-                )
-
-            elif nombre == "Dividir archivos PDF":
-                boton.clicked.connect(
-                    self.abrir_division_pdf.emit
-                )
-
-            contenido.addWidget(
-                boton
-            )
-
-            # Mostrar herramientas futuras.
-            if not disponible:
-                estado = QLabel(
-                    "Proximamente"
-                )
-
-                estado.setObjectName(
-                    "textoSecundario"
-                )
-
-                contenido.addWidget(
-                    estado
-                )
-
-            # Distribuir tarjetas en dos columnas.
-            fila = indice // 2
-            columna = indice % 2
-
-            cuadricula.addWidget(
-                tarjeta,
-                fila,
-                columna
-            )
-
-        # 6. Organizacion de la pantalla.
-        diseno.addWidget(titulo)
-        diseno.addWidget(descripcion)
-        diseno.addWidget(zona_archivos)
         diseno.addWidget(subtitulo)
+
+        cuadricula = QGridLayout()
+        cuadricula.setSpacing(16)
+
+        tarjeta_convertir = self.crear_tarjeta(
+            "W",
+            "Convertir PDF a Word",
+            "Transforma documentos PDF en archivos "
+            "Word editables. Puedes utilizar la "
+            "conversión tradicional o el "
+            "reconocimiento de texto mediante OCR.",
+            accion=self.abrir_conversor.emit
+        )
+
+        tarjeta_unir = self.crear_tarjeta(
+            "+",
+            "Unir archivos PDF",
+            "Combina dos o más documentos PDF "
+            "en un único archivo. Puedes elegir "
+            "el orden de los documentos antes "
+            "de realizar la unión.",
+            accion=self.abrir_union_pdf.emit
+        )
+
+        tarjeta_dividir = self.crear_tarjeta(
+            "÷",
+            "Dividir archivos PDF",
+            "Extrae un rango de páginas, selecciona "
+            "páginas específicas o genera un PDF "
+            "independiente por cada página.",
+            accion=self.abrir_division_pdf.emit
+        )
+
+        self.tarjeta_convertir = tarjeta_convertir
+        self.tarjeta_unir = tarjeta_unir
+        self.tarjeta_dividir = tarjeta_dividir
+
+        cuadricula.addWidget(
+            tarjeta_convertir, 0, 0
+        )
+        cuadricula.addWidget(
+            tarjeta_unir, 0, 1
+        )
+        cuadricula.addWidget(
+            tarjeta_dividir, 1, 0
+        )
+
+        cuadricula.setColumnStretch(0, 1)
+        cuadricula.setColumnStretch(1, 1)
+
         diseno.addLayout(cuadricula)
 
+        # ---------------------------------------
+        # 3. HERRAMIENTAS FUTURAS
+        # ---------------------------------------
+
+        diseno.addSpacing(12)
+
+        subtitulo_futuras = QLabel(
+            "Próximamente"
+        )
+        subtitulo_futuras.setObjectName(
+            "subtituloPagina"
+        )
+
+        descripcion_futuras = QLabel(
+            "Estas herramientas están previstas "
+            "para futuras versiones de DocLab."
+        )
+        descripcion_futuras.setObjectName(
+            "textoSecundario"
+        )
+        descripcion_futuras.setWordWrap(True)
+
+        diseno.addWidget(subtitulo_futuras)
+        diseno.addWidget(descripcion_futuras)
+
+        cuadricula_futuras = QGridLayout()
+        cuadricula_futuras.setSpacing(16)
+
+        tarjeta_comprimir = self.crear_tarjeta(
+            "↓",
+            "Comprimir PDF",
+            "Herramienta prevista para intentar "
+            "reducir el tamaño de documentos PDF "
+            "cuando su contenido lo permita.",
+            disponible=False
+        )
+
+        tarjeta_fotos = self.crear_tarjeta(
+            "▣",
+            "Fotografías a PDF",
+            "Herramienta prevista para reunir "
+            "fotografías de apuntes y diapositivas "
+            "en un documento PDF organizado.",
+            disponible=False
+        )
+
+        cuadricula_futuras.addWidget(
+            tarjeta_comprimir, 0, 0
+        )
+        cuadricula_futuras.addWidget(
+            tarjeta_fotos, 0, 1
+        )
+
+        cuadricula_futuras.setColumnStretch(0, 1)
+        cuadricula_futuras.setColumnStretch(1, 1)
+
+        diseno.addLayout(cuadricula_futuras)
         diseno.addStretch()
+
+        desplazamiento.setWidget(contenedor)
+
+        diseno_principal.addWidget(
+            desplazamiento
+        )

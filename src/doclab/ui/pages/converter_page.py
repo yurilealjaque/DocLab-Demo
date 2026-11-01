@@ -97,14 +97,14 @@ class PaginaConversor(QWidget):
         self.selector_modalidad = QComboBox()
 
         self.selector_modalidad.addItem(
-            "Tradicional - PDF con texto digital",
-            "tradicional"
-        )
+    "PDF digital - Conversión tradicional",
+    "tradicional"
+    )
 
         self.selector_modalidad.addItem(
-            "Con OCR - documentos escaneados o mixtos",
-            "ocr"
-        )
+    "PDF escaneado o con imágenes - OCR",
+    "ocr"
+    )
 
         self.selector_modalidad.setToolTip(
             "Selecciona como deseas convertir "
@@ -194,24 +194,38 @@ class PaginaConversor(QWidget):
         self.actualizar_descripcion_modalidad()
 
     def actualizar_descripcion_modalidad(self):
+        """
+        Explica al usuario cuándo utilizar
+        cada modalidad de conversión.
+        """
 
         modalidad = self.selector_modalidad.currentData()
 
         if modalidad == "ocr":
-
             self.descripcion_modalidad.setText(
-                "Reconoce texto en imagenes y escaneos "
-                "para generar un Word editable. "
-                "El diseño original puede variar."
+                "¿Cuándo elegir esta opción?\n\n"
+                "Utilízala cuando tu PDF contenga páginas "
+                "escaneadas, fotografías o texto que no "
+                "puedas seleccionar con el mouse.\n\n"
+                "DocLab intentará reconocer las palabras "
+                "para generar un documento Word editable.\n\n"
+                "Importante: el reconocimiento puede "
+                "contener errores y el diseño original "
+                "puede cambiar."
             )
 
         else:
-
             self.descripcion_modalidad.setText(
-                "Convierte PDFs con texto digital "
-                "mediante el motor tradicional. "
-                "Recomendado para conservar mejor "
-                "la distribucion original."
+                "¿Cuándo elegir esta opción?\n\n"
+                "Utilízala cuando el PDF contenga texto "
+                "digital que puedas seleccionar "
+                "y copiar con el mouse.\n\n"
+                "DocLab convertirá el documento a Word "
+                "intentando conservar su distribución "
+                "y formato original.\n\n"
+                "Importante: el resultado puede presentar "
+                "diferencias en tablas, imágenes "
+                "o diseños complejos."
             )
 
     def establecer_archivo(self, ruta):
