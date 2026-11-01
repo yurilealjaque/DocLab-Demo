@@ -1,124 +1,268 @@
 
+/*
+====================================================
+DOCLAB — TEMA GRAFITO Y VIOLETA
+Etapa 5 — Rediseño visual, incremento 2
+====================================================
+*/
+
+/* ESTILO GENERAL */
+
 QWidget {
-    background-color: #111827;
-    color: #F1F5F9;
+    background-color: #121218;
+    color: #F5F3FF;
     font-family: "Segoe UI";
     font-size: 14px;
 }
 
+QToolTip {
+    background-color: #302D3C;
+    color: #F5F3FF;
+    border: 1px solid #71638E;
+    padding: 6px;
+}
+
+/* BARRA LATERAL */
+
 QFrame#barraLateral {
-    background-color: #0B1220;
-    border-right: 1px solid #243247;
+    background-color: #191922;
+    border-right: 1px solid #363442;
 }
 
 QLabel#logo {
     font-size: 30px;
     font-weight: bold;
-    color: #5EEAD4;
+    color: #C4B5FD;
     padding: 4px;
 }
+
+/* TIPOGRAFÍA */
 
 QLabel#tituloPagina {
     font-size: 28px;
     font-weight: bold;
-    color: #FFFFFF;
+    color: #F5F3FF;
 }
 
 QLabel#subtituloPagina {
     font-size: 20px;
     font-weight: bold;
-    color: #FFFFFF;
+    color: #F5F3FF;
 }
 
 QLabel#textoSecundario {
-    color: #94A3B8;
+    color: #BBB7CC;
     font-size: 13px;
 }
 
+/* ZONA DE SELECCIÓN DE ARCHIVOS */
+
 QFrame#zonaArchivos {
-    background-color: #192637;
-    border: 2px dashed #416075;
+    background-color: #22212D;
+    border: 2px dashed #74629A;
     border-radius: 15px;
 }
 
 QLabel#tituloZona {
     font-size: 19px;
     font-weight: bold;
-    color: #E2E8F0;
+    color: #F5F3FF;
     background: transparent;
 }
 
+/* TARJETAS DE HERRAMIENTAS */
+
 QFrame#tarjetaHerramienta {
-    background-color: #1D2939;
-    border: 1px solid #334155;
+    background-color: #232230;
+    border: 1px solid #454052;
     border-radius: 12px;
     padding: 10px;
 }
 
+/* BOTONES GENERALES */
+
 QPushButton {
-    border: none;
-    border-radius: 8px;
+    background-color: #2D2D3B;
+    color: #F5F3FF;
+    border: 1px solid #494558;
+    border-radius: 9px;
     padding: 12px 18px;
     font-weight: 600;
 }
 
+QPushButton:hover {
+    background-color: #3B3550;
+    border: 1px solid #8B5CF6;
+}
+
+QPushButton:pressed {
+    background-color: #4C3975;
+}
+
+QPushButton:disabled {
+    background-color: #252530;
+    color: #898597;
+    border: 1px solid #363442;
+}
+
+QPushButton:focus {
+    border: 2px solid #A78BFA;
+}
+
+/* BOTONES PRINCIPALES */
+
 QPushButton#botonPrincipal {
-    background-color: #0D9488;
+    background-color: #8B5CF6;
     color: #FFFFFF;
+    border: 1px solid #9D73F7;
+    font-weight: 700;
 }
 
 QPushButton#botonPrincipal:hover {
-    background-color: #14B8A6;
+    background-color: #9D73F7;
+    border: 1px solid #C4B5FD;
+}
+
+QPushButton#botonPrincipal:pressed {
+    background-color: #7545DA;
 }
 
 QPushButton#botonPrincipal:disabled {
-    background-color: #334155;
-    color: #94A3B8;
+    background-color: #353142;
+    color: #9993A9;
+    border: 1px solid #464153;
 }
+
+/* BOTONES DEL MENÚ */
 
 QPushButton#botonMenu {
     background-color: transparent;
-    color: #CBD5E1;
+    color: #CBC6D8;
+    border: 1px solid transparent;
     text-align: left;
     padding: 14px;
 }
 
 QPushButton#botonMenu:hover {
-    background-color: #1E293B;
+    background-color: #292536;
+    color: #F5F3FF;
 }
 
 QPushButton#botonMenu[activo="true"] {
-    background-color: #164E50;
-    color: #5EEAD4;
+    background-color: #35264F;
+    color: #D8C8FF;
+    border: 1px solid #63489B;
 }
 
 QPushButton#botonMenu:disabled {
-    color: #64748B;
+    color: #817C90;
+    background-color: transparent;
+    border: 1px solid transparent;
 }
+
+/* TARJETAS INTERACTIVAS */
 
 QPushButton#botonHerramienta {
     background-color: transparent;
-    color: #F1F5F9;
+    color: #F5F3FF;
+    border: none;
     text-align: left;
 }
 
 QPushButton#botonHerramienta:hover {
-    color: #5EEAD4;
+    background-color: #342947;
+    color: #D8C8FF;
 }
 
 QPushButton#botonHerramienta:disabled {
-    color: #94A3B8;
+    background-color: transparent;
+    color: #898397;
 }
 
+/* LISTAS */
+
+QListWidget {
+    background-color: #1D1C27;
+    color: #F5F3FF;
+    border: 1px solid #454052;
+    border-radius: 10px;
+    padding: 8px;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 10px;
+    border-radius: 6px;
+}
+
+QListWidget::item:hover {
+    background-color: #302A40;
+}
+
+QListWidget::item:selected {
+    background-color: #59418A;
+    color: #FFFFFF;
+}
+
+/* CAMPOS DE ENTRADA Y SELECTORES */
+
+QLineEdit,
+QSpinBox,
+QComboBox {
+    background-color: #252431;
+    color: #F5F3FF;
+    border: 1px solid #514B61;
+    border-radius: 8px;
+    padding: 9px 12px;
+    min-height: 22px;
+}
+
+QLineEdit:hover,
+QSpinBox:hover,
+QComboBox:hover {
+    border: 1px solid #8270A8;
+}
+
+QLineEdit:focus,
+QSpinBox:focus,
+QComboBox:focus {
+    border: 2px solid #A78BFA;
+}
+
+QLineEdit:disabled,
+QSpinBox:disabled,
+QComboBox:disabled {
+    background-color: #20202A;
+    color: #918B9F;
+    border: 1px solid #373342;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 28px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #252431;
+    color: #F5F3FF;
+    border: 1px solid #64547D;
+    selection-background-color: #59418A;
+    selection-color: #FFFFFF;
+    outline: none;
+}
+
+/* BARRAS DE PROGRESO */
+
 QProgressBar {
-    background-color: #1E293B;
-    border: 1px solid #334155;
+    background-color: #272432;
+    color: #F5F3FF;
+    border: 1px solid #484156;
     border-radius: 6px;
     min-height: 12px;
     max-height: 12px;
 }
 
 QProgressBar::chunk {
-    background-color: #14B8A6;
+    background-color: #8B5CF6;
     border-radius: 5px;
 }
