@@ -340,27 +340,41 @@ class PaginaConversor(QWidget):
         self.trabajador.start()
 
     def conversion_completada(self, ruta):
+        """
+        Informa que la conversion termino correctamente.
+        """
 
         self.etiqueta_estado.setText(
-            "Conversion finalizada correctamente."
+            "Conversión finalizada correctamente."
         )
 
         QMessageBox.information(
             self,
-            "Conversion completada",
-            f"El documento Word se guardo en:\n{ruta}"
+            "Documento Word generado",
+            "¡La conversión ha finalizado!\n\n"
+            f"Ubicación del documento:\n{ruta}\n\n"
+            "Recuerda revisar el contenido y formato "
+            "del Word generado, ya que pueden existir "
+            "diferencias respecto al PDF original."
         )
-
     def conversion_con_error(self, mensaje):
+        """
+        Informa al usuario sobre un error
+        ocurrido durante la conversion.
+        """
 
         self.etiqueta_estado.setText(
-            "No fue posible convertir el documento."
+            "No se pudo convertir el documento."
         )
 
         QMessageBox.critical(
             self,
-            "Error de conversion",
-            mensaje
+            "No se pudo completar la conversión",
+            "DocLab encontró un problema al intentar "
+            "convertir el PDF a Word.\n\n"
+            f"Detalle del problema:\n{mensaje}\n\n"
+            "Revisa la información anterior "
+            "antes de intentarlo nuevamente."
         )
 
     def finalizar_trabajo(self):

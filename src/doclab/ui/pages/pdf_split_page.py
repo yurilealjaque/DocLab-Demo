@@ -527,36 +527,50 @@ class PaginaDivisionPDF(QWidget):
 
     def mostrar_resultado(self, rutas_generadas):
         """
-        Informa cuantos documentos se generaron.
+        Informa cuantos documentos PDF
+        fueron generados correctamente.
         """
 
         cantidad = len(rutas_generadas)
 
         self.etiqueta_estado.setText(
-            f"Division completada: "
+            f"División completada: "
             f"{cantidad} archivo(s) generado(s)."
         )
 
+        if cantidad == 1:
+            descripcion = "Se generó 1 documento PDF."
+        else:
+            descripcion = (
+                f"Se generaron {cantidad} documentos PDF."
+            )
+
         QMessageBox.information(
             self,
-            "Division completada",
-            f"Se generaron {cantidad} "
-            "archivo(s) PDF correctamente."
+            "División completada",
+            f"¡La operación finalizó correctamente!\n\n"
+            f"{descripcion}\n\n"
+            "Te recomendamos revisar los documentos "
+            "generados para comprobar su contenido."
         )
 
     def mostrar_error(self, mensaje):
         """
-        Informa un error del trabajador.
+        Informa un error durante la division PDF.
         """
 
         self.etiqueta_estado.setText(
-            "No fue posible completar la division."
+            "No se pudo completar la división."
         )
 
         QMessageBox.critical(
             self,
-            "Error al dividir PDF",
-            mensaje
+            "No se pudo completar la división",
+            "DocLab encontró un problema al intentar "
+            "dividir el documento PDF.\n\n"
+            f"Detalle del problema:\n{mensaje}\n\n"
+            "Revisa la información anterior "
+            "antes de intentarlo nuevamente."
         )
 
     def finalizar_division(self):
