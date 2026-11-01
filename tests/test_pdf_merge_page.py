@@ -236,3 +236,138 @@ def test_resumen_se_actualiza_al_eliminar(
     assert pagina_union.etiqueta_contador.text() == (
         "1 archivos seleccionados"
     )
+
+def test_advertencia_archivos_insuficientes(
+    pagina_union,
+    monkeypatch
+):
+    """
+    Verifica que DocLab informe correctamente
+    cuando se intenta unir menos de dos PDF.
+    """
+
+    mensajes = []
+
+    def simular_advertencia(
+        ventana,
+        titulo,
+        contenido
+    ):
+        mensajes.append({
+            "titulo": titulo,
+            "contenido": contenido
+        })
+
+    monkeypatch.setattr(
+        "doclab.ui.pages.pdf_merge_page.QMessageBox.warning",
+        simular_advertencia
+    )
+
+    # Intentar unir sin documentos.
+    pagina_union.unir_pdf()
+
+    assert len(mensajes) == 1
+
+    assert mensajes[0]["titulo"] == (
+        "No se puede iniciar la unión"
+    )
+
+    assert "al menos dos archivos PDF" in (
+        mensajes[0]["contenido"]
+    )
+
+    assert "intenta nuevamente" in (
+        mensajes[0]["contenido"]
+    )
+
+    def test_mensaje_union_exitosa(
+    pagina_union,
+    monkeypatch
+):
+        """
+        Comprueba que DocLab muestre un mensaje
+        claro cuando la unión finaliza correctamente.
+        """
+
+        mensajes = []
+
+        def simular_mensaje(
+            ventana,
+            titulo,
+            contenido
+        ):
+            mensajes.append({
+                "titulo": titulo,
+                "contenido": contenido
+            })
+
+        monkeypatch.setattr(
+            "doclab.ui.pages.pdf_merge_page.QMessageBox.information",
+            simular_mensaje
+        )
+
+        ruta_resultado = "C:/Documentos/documento_unido.pdf"
+
+        # Simulamos la notificación de una unión exitosa.
+        pagina_union.union_completada(ruta_resultado)
+
+        assert len(mensajes) == 1
+
+        assert mensajes[0]["titulo"] == (
+            "PDF unido correctamente"
+        )
+
+        assert "La unión de documentos ha finalizado" in (
+            mensajes[0]["contenido"]
+        )
+
+        assert ruta_resultado in (
+            mensajes[0]["contenido"]
+        )
+
+        assert "revisar el documento" in (
+            mensajes[0]["contenido"]
+        )
+
+
+        def test_mensaje_error_union(pagina_union, monkeypatch):
+            """
+            Comprueba que la interfaz muestre el error
+            recibido del trabajador.
+            """
+
+            mensajes = []
+
+            def simular_error(ventana, titulo, contenido):
+                mensajes.append({
+                    "titulo": titulo,
+                    "contenido": contenido
+                })
+
+            monkeypatch.setattr(
+                "doclab.ui.pages.pdf_merge_page.QMessageBox.critical",
+                simular_error
+            )
+
+            error_original = (
+                "Uno de los archivos PDF esta protegido "
+                "con contrasena y no puede procesarse."
+            )
+
+            pagina_union.union_con_error(error_original)
+
+            assert len(mensajes) == 1
+
+            assert mensajes[0]["titulo"] == (
+                "No se pudo completar la unión"
+            )
+
+            assert error_original in mensajes[0]["contenido"]
+
+            assert "Detalle del problema:" in (
+                mensajes[0]["contenido"]
+            )
+
+            assert pagina_union.etiqueta_estado.text() == (
+                "No se pudo completar la unión de PDF."
+            )

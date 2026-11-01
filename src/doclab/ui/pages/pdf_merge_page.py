@@ -225,7 +225,7 @@ class PaginaUnionPDF(QWidget):
 
         self.actualizar_resumen_pdf()
 
-        
+
     def actualizar_resumen_pdf(self):
         """
         Calcula la cantidad total de páginas
@@ -355,8 +355,11 @@ class PaginaUnionPDF(QWidget):
         if len(self.rutas_pdf) < 2:
             QMessageBox.warning(
                 self,
-                "Archivos insuficientes",
-                "Selecciona al menos dos PDF para unir."
+                "No se puede iniciar la unión",
+                "Para combinar documentos necesitas "
+                "seleccionar al menos dos archivos PDF.\n\n"
+                "Agrega los documentos que faltan "
+                "e intenta nuevamente."
             )
             return
 
@@ -443,23 +446,34 @@ class PaginaUnionPDF(QWidget):
 
         QMessageBox.information(
             self,
-            "Union completada",
-            f"El documento PDF se guardo en:\n{ruta}"
+            "PDF unido correctamente",
+            "¡La unión de documentos ha finalizado!\n\n"
+            "Todos los archivos seleccionados se han "
+            "combinado en un único documento PDF.\n\n"
+            f"Ubicación del archivo:\n{ruta}\n\n"
+            "Te recomendamos revisar el documento "
+            "generado para comprobar su contenido."
         )
+
 
     def union_con_error(self, mensaje):
         """
-        Informa un error durante la union.
+        Muestra un error comprensible al usuario,
+        conservando la explicación del trabajador.
         """
 
         self.etiqueta_estado.setText(
-            "No fue posible unir los documentos."
+            "No se pudo completar la unión de PDF."
         )
 
         QMessageBox.critical(
             self,
-            "Error de union PDF",
-            mensaje
+            "No se pudo completar la unión",
+            "DocLab encontró un problema al intentar "
+            "combinar los documentos seleccionados.\n\n"
+            f"Detalle del problema:\n{mensaje}\n\n"
+            "Revisa la información anterior "
+            "antes de intentarlo nuevamente."
         )
 
     def finalizar_union(self):
