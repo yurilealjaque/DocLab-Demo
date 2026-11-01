@@ -1305,3 +1305,145 @@ git tag --list --sort=-version:refname
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+
+# DocLab — Continuación del README: Etapa 5 (UI/UX)
+
+> **Actualización: octubre de 2026.** Este apartado se añade **al final** de `README.md`; no reemplaza el historial anterior. Documenta el rediseño y la mejora de experiencia de usuario posteriores a la incorporación de convertir, unir y dividir PDF. Algunos apartados históricos del README describen estados anteriores y deben interpretarse según la fecha de cada hito.
+
+## 1. Objetivo de la etapa
+
+Consolidar una interfaz de escritorio **profesional, coherente, intuitiva y accesible para usuarios no técnicos**, sin alterar innecesariamente los motores documentales que ya funcionan. Se adoptó una identidad visual **grafito y violeta** y una metodología de cambios pequeños con revisión manual y pruebas automatizadas.
+
+Principios aplicados:
+
+- **Una tarea por pantalla:** Inicio permite elegir qué hacer; Convertir, Unir y Dividir concentran las operaciones documentales.
+- **Instrucciones claras:** explicar qué hace cada opción, cuándo usarla y qué resultado esperar.
+- **Jerarquía de acciones:** distinguir botones principales de acciones secundarias y representar estados deshabilitados.
+- **Retroalimentación:** comunicar progreso, éxito, fallas y condiciones previas sin ambigüedad.
+- **Diseño adaptable:** evitar que etiquetas, campos y botones se corten al reducir el tamaño de la ventana.
+- **Estabilidad:** conservar señales, validaciones y procesamiento mediante `QThread`; validar cada cambio.
+
+## 2. Identidad visual y estilos
+
+**Archivo principal:** `src/doclab/ui/styles/theme.qss`.
+
+- Paleta oscura basada en grafito, con violeta para navegación activa, foco y acciones principales.
+- Botones secundarios diferenciados de la acción principal.
+- Mejora de contraste y legibilidad de títulos, textos secundarios, listas y controles de entrada.
+- Fondos transparentes para etiquetas `QLabel` donde corresponde, para evitar rectángulos negros sobre tarjetas o zonas de selección.
+- Estilos de listas, selecciones, campos, estados deshabilitados y barras de progreso.
+- Estilos de `QGroupBox` para destacar secciones de formularios con bordes y encabezados reconocibles.
+
+Se procura mantener las reglas compartidas en QSS; algunos componentes especiales aún tienen estilos locales en Python y pueden unificarse en una mejora posterior.
+
+## 3. Pantalla Inicio: acceso a herramientas
+
+**Archivo:** `src/doclab/ui/pages/home_page.py`.
+
+- Se eliminó de **Inicio** el área «Arrastra tu archivo PDF aquí», porque podía hacer pensar que todas las operaciones comenzaban con una misma selección de archivo.
+- Inicio funciona ahora como **catálogo de herramientas**, con tarjetas que explican su propósito y permiten navegar a **Convertir PDF a Word**, **Unir PDF** y **Dividir PDF**.
+- Las herramientas futuras se muestran como **no disponibles**, con una descripción de su finalidad prevista.
+- Se incorporó desplazamiento vertical con `QScrollArea` para que las tarjetas permanezcan accesibles en ventanas pequeñas.
+- Se retiró la conexión antigua que enviaba un PDF directamente desde Inicio hacia Convertir; la selección de documentos se mantiene dentro de cada herramienta.
+
+**Integración:** `src/doclab/ui/main_window.py` mantiene la navegación entre pantallas y las verificaciones de cierre durante operaciones activas.
+
+## 4. Convertir PDF a Word: selector y explicaciones
+
+**Archivos:** `src/doclab/ui/pages/converter_page.py` y `src/doclab/ui/widgets/file_drop_widget.py`.
+
+- La zona de arrastrar y soltar **se conserva en Convertir**, donde su propósito es inequívoco.
+- Se redujo su altura y se ajustaron márgenes y textos para aprovechar mejor el espacio.
+- El selector diferencia los dos casos de uso: **PDF digital — conversión tradicional** y **PDF escaneado o con imágenes — OCR**.
+- Se añadieron explicaciones dinámicas y advertencias razonables: PDF con texto seleccionable para conversión tradicional; PDF escaneado o con texto en imágenes para OCR.
+- La explicación se presenta dentro de una tarjeta informativa grafito con acento violeta.
+- Los identificadores internos de las modalidades (`tradicional` y `ocr`) se conservaron, así como los trabajadores y la lógica de conversión.
+
+**Error corregido durante el desarrollo:** se intentó pasar el valor de retorno de `setStyleSheet()` a `addWidget()`. Como `setStyleSheet()` devuelve `None`, Qt producía un `RuntimeError`. La corrección separó la aplicación del estilo de la incorporación del widget al diseño. Es un ejemplo de error de ejecución que una comprobación de sintaxis (`py_compile`) no detecta.
+
+## 5. Unir PDF: orden y estado de documentos
+
+**Archivo:** `src/doclab/ui/pages/pdf_merge_page.py`.
+
+- Se incorporó un resumen de **cantidad de archivos, páginas detectadas y tamaño acumulado** de los PDF seleccionados.
+- La lectura de páginas se realiza con PyMuPDF; si algún archivo no puede leerse, la interfaz lo informa en el resumen sin presentar un total como plenamente verificado.
+- Se mejoraron los mensajes de éxito, error y advertencia por selección insuficiente.
+- La pantalla presenta instrucciones para agregar, ordenar y combinar archivos.
+- Un estado vacío explica qué aparecerá en la lista y qué acciones podrá realizar el usuario.
+- Los controles de movimiento y eliminación se habilitan o deshabilitan según la selección y la posición del archivo.
+- La unión requiere al menos dos documentos; durante el procesamiento se bloquean los controles pertinentes.
+- Se ajustó la distribución y se incorporó desplazamiento para reducir recortes o superposiciones en ventanas de menor tamaño.
+
+**La incidencia DOC-001 sigue abierta:** se observó pérdida de contenido visual en una página de un PDF unido. Un recuento correcto de páginas no implica fidelidad visual. El rediseño de la GUI no resuelve ni descarta esta incidencia; debe diagnosticarse antes de distribuir DocLab a terceros.
+
+## 6. Dividir PDF: modalidades y adaptación
+
+**Archivo:** `src/doclab/ui/pages/pdf_split_page.py`.
+
+La pantalla mantiene las tres modalidades existentes:
+
+| Modalidad | Resultado esperado |
+| --- | --- |
+| `rango` | Un PDF que incluye todas las páginas entre los dos extremos indicados. |
+| `paginas` | Un PDF con las páginas específicas indicadas, separadas por comas. |
+| `todas` | Un PDF individual por cada página del original. |
+
+Mejoras de UI/UX:
+
+- Tarjeta informativa que cambia de explicación al seleccionar otra modalidad, incluyendo ejemplos concretos.
+- Grupos visuales para **documento de origen**, **modalidad de división** y **destino**.
+- Incorporación de `QScrollArea` y restricciones de tamaño para evitar que se corten las explicaciones y los campos cuando falta altura.
+- Botón principal de división diferenciado visualmente.
+- Mejora del indicador de actividad: el objetivo es mostrar la barra solamente durante una operación y conservar el mensaje de resultado tras finalizar.
+
+La selección de origen, la validación de páginas, la elección del destino, las comprobaciones de datos y el procesamiento mediante `TrabajadorDivisionPDF` continúan separados de los estilos de la pantalla.
+
+## 7. Validación y metodología
+
+Durante la etapa se siguió el ciclo **cambio localizado → revisión de sintaxis → pruebas automatizadas → comprobación manual de interfaz**. Las capturas de la aplicación permitieron detectar problemas que no necesariamente aparecen en pruebas unitarias, como solapamiento de texto y campos recortados.
+
+Comandos habituales desde la raíz del proyecto, con `.venv` activado:
+
+```bash
+# Verificar sintaxis de un archivo Python modificado.
+python -m py_compile src/doclab/ui/pages/pdf_split_page.py
+
+# Ejecutar la suite completa.
+python -m pytest -q --tb=short
+
+# Revisar visualmente las pantallas y operaciones.
+doclab
+```
+
+En una ejecución de esta etapa se comunicaron **185 pruebas aprobadas y 2 errores de construcción de la interfaz**; tras corregir la tarjeta del conversor, el usuario informó que las pruebas volvieron a pasar. **No se fija aquí un recuento definitivo**: puede variar al incorporar nuevas pruebas y debe consultarse en la salida de `pytest` correspondiente a cada commit.
+
+Se recomienda conservar pruebas para los estados de botones y las transiciones de la interfaz, además de la verificación manual con PDF reales.
+
+## 8. Cierre de la Etapa 5 y límites
+
+La Etapa 5 se considera **suficientemente madura para avanzar**, sujeto a que la suite de pruebas y las tres operaciones principales continúen funcionando en la revisión final. No se declara perfección visual ni compatibilidad universal.
+
+Mejoras de interfaz que **no bloquean** la siguiente etapa:
+
+- Sustituir símbolos provisionales por iconografía SVG consistente.
+- Revisar navegación por teclado, accesibilidad y contraste.
+- Probar distintas resoluciones y escalados de Windows.
+- Unificar gradualmente estilos locales con `theme.qss`.
+- Evaluar indicadores de progreso medible si los motores exponen esa información.
+
+Deuda técnica que continúa vigente:
+
+- Diagnosticar **DOC-001** (pérdida de contenido visual en una unión de PDF).
+- Realizar más pruebas de rendimiento, fidelidad y archivos reales complejos.
+- Evaluar cancelación segura de operaciones y recuperación frente a cierres forzosos.
+- Evaluar empaquetado e instalador de Windows cuando las funcionalidades centrales estén estabilizadas.
+
+## 9. Próxima etapa: nuevas funcionalidades
+
+La siguiente fase prevista es ampliar las capacidades documentales de DocLab. Una idea prioritaria para evaluación es **Fotografías de clases → PDF**: importar varias imágenes, ordenarlas, corregir su orientación y generar un PDF local. Las mejoras avanzadas (perspectiva, recorte de diapositivas, limpieza de imagen y OCR opcional) requieren diseño y pruebas posteriores; no se presentan aquí como funciones ya implementadas.
+
+El alcance exacto de la próxima etapa debe definirse antes de codificarla, manteniendo la arquitectura modular: **Interfaz → Trabajador (`QThread`) → Servicio → Motor documental**.
+
+---
+
+**DocLab — Convierte, organiza y transforma tus documentos.**
