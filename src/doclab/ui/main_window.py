@@ -22,10 +22,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+
 from doclab.ui.pages.home_page import PaginaInicio
 from doclab.ui.pages.converter_page import PaginaConversor
 from doclab.ui.pages.pdf_merge_page import PaginaUnionPDF
 from doclab.ui.pages.pdf_split_page import PaginaDivisionPDF
+from doclab.ui.pages.about_page import PaginaSobreMi
 
 
 class VentanaPrincipal(QMainWindow):
@@ -142,6 +144,17 @@ class VentanaPrincipal(QMainWindow):
         boton_historial.setEnabled(False)
 
         diseno_lateral.addStretch()
+        self.boton_sobre_mi = QPushButton(
+            "Sobre mí"
+        )
+
+        self.boton_sobre_mi.setObjectName(
+            "botonMenu"
+        )
+
+        diseno_lateral.addWidget(
+            self.boton_sobre_mi
+        )
 
         # ---------------------------------------
         # 3. PANTALLAS DE LA APLICACION
@@ -153,6 +166,7 @@ class VentanaPrincipal(QMainWindow):
         self.pagina_conversor = PaginaConversor()
         self.pagina_union = PaginaUnionPDF()
         self.pagina_division = PaginaDivisionPDF()
+        self.pagina_sobre_mi = PaginaSobreMi()
 
         self.paginas.addWidget(
             self.pagina_inicio
@@ -168,6 +182,10 @@ class VentanaPrincipal(QMainWindow):
 
         self.paginas.addWidget(
             self.pagina_division
+        )
+
+        self.paginas.addWidget(
+        self.pagina_sobre_mi
         )
 
         # ---------------------------------------
@@ -214,6 +232,13 @@ class VentanaPrincipal(QMainWindow):
                 self.pagina_division
             )
         )
+
+        self.boton_sobre_mi.clicked.connect(
+            lambda: self.navegar_a(
+                self.pagina_sobre_mi
+            )
+        )
+
 
         # ---------------------------------------
         # 6. NAVEGACION DESDE INICIO
@@ -304,6 +329,11 @@ class VentanaPrincipal(QMainWindow):
             (
                 self.boton_dividir,
                 self.pagina_division
+            ),
+
+            (
+                self.boton_sobre_mi,
+                self.pagina_sobre_mi
             ),
         ]
 
