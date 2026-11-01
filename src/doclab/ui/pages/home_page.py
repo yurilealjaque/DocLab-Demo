@@ -35,6 +35,7 @@ class PaginaInicio(QWidget):
     abrir_conversor = Signal()
     abrir_union_pdf = Signal()
     abrir_division_pdf = Signal()
+    abrir_compresion_pdf = Signal()
 
     def __init__(self):
         super().__init__()
@@ -239,9 +240,20 @@ class PaginaInicio(QWidget):
             accion=self.abrir_division_pdf.emit
         )
 
+        tarjeta_comprimir = self.crear_tarjeta(
+            "↓",
+            "Comprimir PDF",
+            "Intenta reducir el tamaño de tus documentos "
+            "PDF mediante optimización interna, "
+            "sin disminuir deliberadamente la calidad "
+            "de sus imágenes o textos.",
+            accion=self.abrir_compresion_pdf.emit
+        )
+
         self.tarjeta_convertir = tarjeta_convertir
         self.tarjeta_unir = tarjeta_unir
         self.tarjeta_dividir = tarjeta_dividir
+        self.tarjeta_comprimir = tarjeta_comprimir
 
         cuadricula.addWidget(
             tarjeta_convertir, 0, 0
@@ -251,6 +263,10 @@ class PaginaInicio(QWidget):
         )
         cuadricula.addWidget(
             tarjeta_dividir, 1, 0
+        )
+
+        cuadricula.addWidget(
+            tarjeta_comprimir, 1, 1
         )
 
         cuadricula.setColumnStretch(0, 1)
@@ -286,14 +302,7 @@ class PaginaInicio(QWidget):
         cuadricula_futuras = QGridLayout()
         cuadricula_futuras.setSpacing(16)
 
-        tarjeta_comprimir = self.crear_tarjeta(
-            "↓",
-            "Comprimir PDF",
-            "Herramienta prevista para intentar "
-            "reducir el tamaño de documentos PDF "
-            "cuando su contenido lo permita.",
-            disponible=False
-        )
+       
 
         tarjeta_fotos = self.crear_tarjeta(
             "▣",
@@ -304,9 +313,7 @@ class PaginaInicio(QWidget):
             disponible=False
         )
 
-        cuadricula_futuras.addWidget(
-            tarjeta_comprimir, 0, 0
-        )
+        
         cuadricula_futuras.addWidget(
             tarjeta_fotos, 0, 1
         )

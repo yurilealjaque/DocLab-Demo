@@ -3,11 +3,18 @@
 Ventana principal de DocLab.
 
 Responsabilidades:
-- Construir la ventana y el menu lateral.
-- Registrar las pantallas de la aplicacion.
-- Gestionar la navegacion.
+- Construir la ventana y el menú lateral.
+- Registrar las pantallas de la aplicación.
+- Gestionar la navegación.
 - Recibir las señales de la pantalla de inicio.
 - Evitar el cierre durante operaciones activas.
+
+Herramientas:
+- Convertir PDF a Word.
+- Unir documentos PDF.
+- Dividir documentos PDF.
+- Comprimir documentos PDF.
+- Sobre mí.
 """
 
 from PySide6.QtWidgets import (
@@ -22,17 +29,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 from doclab.ui.pages.home_page import PaginaInicio
 from doclab.ui.pages.converter_page import PaginaConversor
 from doclab.ui.pages.pdf_merge_page import PaginaUnionPDF
 from doclab.ui.pages.pdf_split_page import PaginaDivisionPDF
+from doclab.ui.pages.pdf_compress_page import PaginaCompresionPDF
 from doclab.ui.pages.about_page import PaginaSobreMi
 
 
 class VentanaPrincipal(QMainWindow):
     """
-    Ventana principal de la aplicacion DocLab.
+    Ventana principal de la aplicación DocLab.
     """
 
     def __init__(self):
@@ -50,7 +57,7 @@ class VentanaPrincipal(QMainWindow):
     def crear_interfaz(self):
         """
         Construye la interfaz principal,
-        el menu lateral y las pantallas.
+        el menú lateral y las pantallas.
         """
 
         # ---------------------------------------
@@ -59,9 +66,7 @@ class VentanaPrincipal(QMainWindow):
 
         contenedor = QWidget()
 
-        diseno_principal = QHBoxLayout(
-            contenedor
-        )
+        diseno_principal = QHBoxLayout(contenedor)
 
         diseno_principal.setContentsMargins(
             0, 0, 0, 0
@@ -74,16 +79,10 @@ class VentanaPrincipal(QMainWindow):
         # ---------------------------------------
 
         barra_lateral = QFrame()
-
-        barra_lateral.setObjectName(
-            "barraLateral"
-        )
-
+        barra_lateral.setObjectName("barraLateral")
         barra_lateral.setFixedWidth(220)
 
-        diseno_lateral = QVBoxLayout(
-            barra_lateral
-        )
+        diseno_lateral = QVBoxLayout(barra_lateral)
 
         diseno_lateral.setContentsMargins(
             16, 28, 16, 24
@@ -94,9 +93,8 @@ class VentanaPrincipal(QMainWindow):
         logo = QLabel("DocLab")
         logo.setObjectName("logo")
 
-        self.boton_inicio = QPushButton(
-            "Inicio"
-        )
+        # Botones de las herramientas.
+        self.boton_inicio = QPushButton("Inicio")
 
         self.boton_convertir = QPushButton(
             "Convertir"
@@ -108,6 +106,10 @@ class VentanaPrincipal(QMainWindow):
 
         self.boton_dividir = QPushButton(
             "Dividir PDF"
+        )
+
+        self.boton_comprimir = QPushButton(
+            "Comprimir PDF"
         )
 
         boton_herramientas = QPushButton(
@@ -123,27 +125,30 @@ class VentanaPrincipal(QMainWindow):
             self.boton_convertir,
             self.boton_unir,
             self.boton_dividir,
+            self.boton_comprimir,
             boton_herramientas,
             boton_historial,
         ]
 
         for boton in botones_menu:
-            boton.setObjectName(
-                "botonMenu"
-            )
+            boton.setObjectName("botonMenu")
 
         diseno_lateral.addWidget(logo)
         diseno_lateral.addSpacing(30)
 
         for boton in botones_menu:
-            diseno_lateral.addWidget(
-                boton
-            )
+            diseno_lateral.addWidget(boton)
 
+        # Funcionalidades todavía no implementadas.
         boton_herramientas.setEnabled(False)
         boton_historial.setEnabled(False)
 
         diseno_lateral.addStretch()
+
+        # ---------------------------------------
+        # BOTÓN SOBRE MÍ
+        # ---------------------------------------
+
         self.boton_sobre_mi = QPushButton(
             "Sobre mí"
         )
@@ -157,7 +162,7 @@ class VentanaPrincipal(QMainWindow):
         )
 
         # ---------------------------------------
-        # 3. PANTALLAS DE LA APLICACION
+        # 3. PANTALLAS DE LA APLICACIÓN
         # ---------------------------------------
 
         self.paginas = QStackedWidget()
@@ -166,6 +171,7 @@ class VentanaPrincipal(QMainWindow):
         self.pagina_conversor = PaginaConversor()
         self.pagina_union = PaginaUnionPDF()
         self.pagina_division = PaginaDivisionPDF()
+        self.pagina_compresion = PaginaCompresionPDF()
         self.pagina_sobre_mi = PaginaSobreMi()
 
         self.paginas.addWidget(
@@ -185,11 +191,15 @@ class VentanaPrincipal(QMainWindow):
         )
 
         self.paginas.addWidget(
-        self.pagina_sobre_mi
+            self.pagina_compresion
+        )
+
+        self.paginas.addWidget(
+            self.pagina_sobre_mi
         )
 
         # ---------------------------------------
-        # 4. ORGANIZACION PRINCIPAL
+        # 4. ORGANIZACIÓN PRINCIPAL
         # ---------------------------------------
 
         diseno_principal.addWidget(
@@ -206,7 +216,7 @@ class VentanaPrincipal(QMainWindow):
         )
 
         # ---------------------------------------
-        # 5. NAVEGACION LATERAL
+        # 5. NAVEGACIÓN LATERAL
         # ---------------------------------------
 
         self.boton_inicio.clicked.connect(
@@ -233,15 +243,20 @@ class VentanaPrincipal(QMainWindow):
             )
         )
 
+        self.boton_comprimir.clicked.connect(
+            lambda: self.navegar_a(
+                self.pagina_compresion
+            )
+        )
+
         self.boton_sobre_mi.clicked.connect(
             lambda: self.navegar_a(
                 self.pagina_sobre_mi
             )
         )
 
-
         # ---------------------------------------
-        # 6. NAVEGACION DESDE INICIO
+        # 6. NAVEGACIÓN DESDE INICIO
         # ---------------------------------------
 
         self.pagina_inicio.abrir_conversor.connect(
@@ -262,8 +277,11 @@ class VentanaPrincipal(QMainWindow):
             )
         )
 
-        # Ya no existe seleccion de PDF en Inicio.
-        # La seleccion se realiza en el conversor.
+        self.pagina_inicio.abrir_compresion_pdf.connect(
+            lambda: self.navegar_a(
+                self.pagina_compresion
+            )
+        )
 
         # ---------------------------------------
         # 7. PANTALLA INICIAL
@@ -277,8 +295,8 @@ class VentanaPrincipal(QMainWindow):
         """
         Navega a una pantalla registrada.
 
-        Evita utilizar indices fijos,
-        facilitando agregar herramientas.
+        Evita utilizar índices fijos para
+        facilitar la incorporación de herramientas.
         """
 
         indice = self.paginas.indexOf(
@@ -287,7 +305,7 @@ class VentanaPrincipal(QMainWindow):
 
         if indice == -1:
             raise ValueError(
-                "La pantalla no esta registrada "
+                "La pantalla no está registrada "
                 "en la ventana principal."
             )
 
@@ -297,8 +315,8 @@ class VentanaPrincipal(QMainWindow):
 
     def mostrar_pagina(self, indice):
         """
-        Cambia la pantalla visible y
-        actualiza el estado visual del menu.
+        Cambia la pantalla visible y actualiza
+        el estado visual del menú lateral.
         """
 
         if (
@@ -306,7 +324,7 @@ class VentanaPrincipal(QMainWindow):
             or indice >= self.paginas.count()
         ):
             raise ValueError(
-                "Indice de pantalla no valido."
+                "Índice de pantalla no válido."
             )
 
         self.paginas.setCurrentIndex(
@@ -330,7 +348,10 @@ class VentanaPrincipal(QMainWindow):
                 self.boton_dividir,
                 self.pagina_division
             ),
-
+            (
+                self.boton_comprimir,
+                self.pagina_compresion
+            ),
             (
                 self.boton_sobre_mi,
                 self.pagina_sobre_mi
@@ -362,11 +383,11 @@ class VentanaPrincipal(QMainWindow):
     def closeEvent(self, evento):
         """
         Impide cerrar DocLab mientras existan
-        operaciones documentales en ejecucion.
+        operaciones documentales en ejecución.
         """
 
         # ---------------------------------------
-        # 1. CONVERSION PDF A WORD
+        # 1. CONVERSIÓN PDF A WORD
         # ---------------------------------------
 
         trabajador_conversion = (
@@ -379,17 +400,17 @@ class VentanaPrincipal(QMainWindow):
         ):
             QMessageBox.warning(
                 self,
-                "Conversion en proceso",
-                "DocLab esta convirtiendo un documento.\n\n"
-                "Espera a que termine la conversion "
-                "antes de cerrar la aplicacion."
+                "Conversión en proceso",
+                "DocLab está convirtiendo un documento.\n\n"
+                "Espera a que termine la conversión "
+                "antes de cerrar la aplicación."
             )
 
             evento.ignore()
             return
 
         # ---------------------------------------
-        # 2. UNION DE DOCUMENTOS PDF
+        # 2. UNIÓN DE DOCUMENTOS PDF
         # ---------------------------------------
 
         trabajador_union = (
@@ -402,17 +423,17 @@ class VentanaPrincipal(QMainWindow):
         ):
             QMessageBox.warning(
                 self,
-                "Union PDF en proceso",
-                "DocLab esta uniendo documentos PDF.\n\n"
-                "Espera a que termine la union "
-                "antes de cerrar la aplicacion."
+                "Unión PDF en proceso",
+                "DocLab está uniendo documentos PDF.\n\n"
+                "Espera a que termine la unión "
+                "antes de cerrar la aplicación."
             )
 
             evento.ignore()
             return
 
         # ---------------------------------------
-        # 3. DIVISION DE DOCUMENTOS PDF
+        # 3. DIVISIÓN DE DOCUMENTOS PDF
         # ---------------------------------------
 
         trabajador_division = (
@@ -425,17 +446,38 @@ class VentanaPrincipal(QMainWindow):
         ):
             QMessageBox.warning(
                 self,
-                "Division PDF en proceso",
-                "DocLab esta dividiendo un documento PDF.\n\n"
-                "Espera a que termine la division "
-                "antes de cerrar la aplicacion."
+                "División PDF en proceso",
+                "DocLab está dividiendo un documento PDF.\n\n"
+                "Espera a que termine la división "
+                "antes de cerrar la aplicación."
             )
 
             evento.ignore()
             return
 
         # ---------------------------------------
-        # 4. CIERRE SEGURO
+        # 4. COMPRESIÓN DE DOCUMENTOS PDF
+        # ---------------------------------------
+
+        trabajador_compresion = (
+            self.pagina_compresion.trabajador
+        )
+
+        if trabajador_compresion is not None:
+            QMessageBox.warning(
+                self,
+                "Compresión PDF en proceso",
+                "DocLab está comprimiendo un documento PDF "
+                "o finalizando la operación.\n\n"
+                "Espera a que termine el procesamiento "
+                "antes de cerrar la aplicación."
+            )
+
+            evento.ignore()
+            return
+
+        # ---------------------------------------
+        # 5. CIERRE SEGURO
         # ---------------------------------------
 
         evento.accept()

@@ -1447,3 +1447,117 @@ El alcance exacto de la próxima etapa debe definirse antes de codificarla, mant
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+
+# DocLab — Continuación del README: Compresión PDF sin pérdida
+
+> **Actualización: noviembre de 2026.** Este documento es un complemento para **agregar al final** del `README.md` existente, no para reemplazar su historial. Registra la incorporación de la herramienta de compresión PDF y las verificaciones comunicadas durante el desarrollo.
+
+**Repositorio:** https://github.com/yurilealjaque/DocLab-Demo  
+**Entorno:** Windows, Python 3.13, PySide6, PyMuPDF, pytest.  
+**Estado:** MVP de compresión PDF implementado, integrado con la interfaz y probado en los escenarios descritos.
+
+## 1. Objetivo
+
+Incorporar una herramienta que intente reducir el tamaño de archivos PDF mediante **optimización estructural**, sin disminuir deliberadamente la resolución de las imágenes ni aplicar compresión con pérdida. La reducción de tamaño depende de la construcción interna de cada PDF y **no está garantizada**.
+
+## 2. Funcionalidades incorporadas
+
+- Selección de un documento PDF desde el explorador de archivos.
+- Validación del archivo de origen mediante el validador compartido `pdf_validator.py`.
+- Compresión de estructuras internas con PyMuPDF, usando `garbage=3`, `deflate=True` y `use_objstms=1` en el motor implementado.
+- Rechazo preventivo de algunos indicadores reconocibles de firmas digitales; esta detección **no equivale** a una validación criptográfica exhaustiva.
+- Generación inicial de un archivo temporal en la carpeta de destino.
+- Comprobación de número de páginas y comparación de propiedades básicas antes de publicar: dimensiones, rotación, texto extraído y cantidades de enlaces, anotaciones y campos.
+- Protección contra sobrescritura del archivo de origen y de destinos existentes.
+- Publicación mediante `os.link()` y limpieza del temporal ante finalización o errores controlados.
+- Ausencia de publicación cuando el resultado no es menor que el original, comunicada como falta de reducción.
+- Presentación de tamaño original, tamaño final y porcentaje de ahorro.
+- Procesamiento en segundo plano mediante `QThread`, señales de éxito/error y registro con `logging`.
+- Nueva pantalla **Comprimir PDF** y accesos desde Inicio y el menú lateral, conservando la identidad visual grafito y violeta.
+- Protección del cierre normal de la ventana principal durante la compresión.
+
+## 3. Arquitectura modular
+
+El nuevo flujo respeta la arquitectura vigente de DocLab:
+
+```text
+PaginaCompresionPDF (PySide6)
+    ↓
+TrabajadorCompresionPDF (QThread)
+    ↓
+ServicioCompresionPDF
+    ↓
+comprimir_pdf() (PyMuPDF)
+    ↓
+Validación del resultado y publicación sin sobrescritura
+```
+
+### Archivos incorporados
+
+| Ruta | Responsabilidad |
+| --- | --- |
+| `src/doclab/document_engine/pdf_compressor.py` | Validaciones específicas, optimización, comparación, publicación y resultado estructurado. |
+| `src/doclab/services/pdf_compress_service.py` | Delegación al motor y propagación de resultados y excepciones. |
+| `src/doclab/workers/pdf_compress_worker.py` | Ejecución fuera del hilo gráfico, señales y mensajes de errores conocidos. |
+| `src/doclab/ui/pages/pdf_compress_page.py` | Selección de origen/destino, controles, estado y resultados. |
+| `tests/test_pdf_compressor.py` | Pruebas del motor. |
+| `tests/test_pdf_compress_service.py` | Pruebas del servicio. |
+| `tests/test_pdf_compress_worker.py` | Pruebas del trabajador. |
+| `tests/test_pdf_compress_page.py` | Pruebas de la pantalla. |
+
+### Archivos modificados
+
+- `src/doclab/ui/main_window.py`: registro de la pantalla, navegación lateral y bloqueo del cierre durante compresión.
+- `src/doclab/ui/pages/home_page.py`: tarjeta Comprimir PDF habilitada, trasladada desde Próximamente, y señal para navegar a la herramienta.
+
+No se sustituyeron deliberadamente los motores estables de conversión, unión o división de PDF.
+
+## 4. Comportamiento esperado
+
+1. Seleccionar un documento PDF válido.
+2. Revisar las páginas y el tamaño informados en la interfaz.
+3. Elegir un nombre y una carpeta para el resultado.
+4. Ejecutar la optimización en segundo plano.
+5. Si el documento resultante es más pequeño y supera las comprobaciones implementadas, publicarlo y mostrar el ahorro.
+6. Si no hay reducción, informar la situación y conservar el PDF original sin crear una salida innecesaria.
+7. Si hay un error de validación o publicación, informar el problema y limpiar los temporales cuando sea posible.
+
+## 5. Calidad y pruebas
+
+**Último resultado comunicado por el desarrollador:** `219 passed in 6.81s`, ejecutando:
+
+```bash
+python -m pytest -q --tb=short
+```
+
+El desarrollador también confirmó la realización satisfactoria de las pruebas manuales con PDF sintéticos de texto digital, imágenes, un documento ya optimizado, un PDF protegido y un archivo corrupto. Se revisaron asimismo la integración visual y la navegación de la interfaz.
+
+Este resultado documenta una ejecución informada durante el desarrollo: **no constituye una ejecución independiente ni una garantía de corrección universal**.
+
+## 6. Limitaciones y deuda técnica
+
+- La optimización no garantiza reducir todos los PDF ni un porcentaje mínimo de ahorro.
+- El método no realiza reducción de resolución de imágenes ni ofrece por ahora niveles de calidad con pérdida.
+- La comparación de propiedades esenciales **no garantiza equivalencia visual o semántica absoluta**.
+- La detección de firmas digitales es preventiva y parcial; faltan pruebas de documentos firmados reales y otras estructuras especiales.
+- La reescritura de un PDF puede afectar ciertos metadatos técnicos, firmas, estructuras o características especiales.
+- `os.link()` requiere soporte de enlaces físicos y puede fallar según el sistema de archivos o sus permisos.
+- No existe todavía cancelación segura general durante la operación.
+- Las pruebas automatizadas de GUI incluyen trabajadores simulados y no cubren todas las condiciones posibles de carrera, cierre o terminación abrupta.
+- Permanecen pendientes pruebas adicionales de rendimiento, documentos grandes, anotaciones, formularios y fidelidad visual.
+- **DOC-001 permanece abierta:** durante la unión de ciertos PDF puede perderse contenido visual aunque el número de páginas sea correcto. La compresión no resuelve esta incidencia.
+
+## 7. Próximos pasos
+
+- Ampliar la cobertura de pruebas de PDF especiales y el ciclo de vida de `QThread`.
+- Evaluar una futura modalidad de compresión con pérdida controlada, solo con diseño y pruebas independientes.
+- Abordar posteriormente la herramienta **Fotografías a PDF**, orientada a apuntes, pizarras y diapositivas fotografiadas.
+- Posponer el empaquetado/instalador de Windows hasta estabilizar las herramientas centrales y revisar las licencias de las dependencias.
+
+## 8. Finalidad del proyecto
+
+DocLab es un proyecto personal en desarrollo con el fin de ayudar a las personas. En el presente, es un proyecto solo educativo.
+
+---
+
+**DocLab — Convierte, organiza y transforma tus documentos.**
