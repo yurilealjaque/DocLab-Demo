@@ -13,6 +13,7 @@ Funcionalidades:
 """
 
 from pathlib import Path
+import pymupdf
 
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -114,6 +115,15 @@ class PaginaUnionPDF(QWidget):
         self.etiqueta_contador.setObjectName(
             "textoSecundario"
         )
+       # Muestra el total de páginas y el tamaño
+        # de los documentos seleccionados.
+        self.etiqueta_resumen = QLabel(
+            "0 páginas | 0,00 MB"
+        )
+
+        self.etiqueta_resumen.setObjectName(
+            "textoSecundario"
+        )
 
         # 6. Boton principal de union.
         self.boton_unir = QPushButton(
@@ -145,6 +155,7 @@ class PaginaUnionPDF(QWidget):
         diseno.addWidget(self.lista_archivos)
         diseno.addLayout(diseno_botones)
         diseno.addWidget(self.etiqueta_contador)
+        diseno.addWidget(self.etiqueta_resumen)
         diseno.addWidget(self.boton_unir)
         diseno.addWidget(self.progreso)
         diseno.addWidget(self.etiqueta_estado)
@@ -212,6 +223,44 @@ class PaginaUnionPDF(QWidget):
             f"{cantidad} archivos seleccionados"
         )
 
+        self.actualizar_resumen_pdf()
+
+        
+    def actualizar_resumen_pdf(self):
+        """
+        Calcula la cantidad total de páginas
+        y el tamaño de los PDF seleccionados.
+        """
+
+        total_paginas = 0
+        total_bytes = 0
+        documentos_sin_lectura = 0
+
+        for ruta in self.rutas_pdf:
+            archivo = Path(ruta)
+
+            try:
+                total_bytes += archivo.stat().st_size
+
+                with pymupdf.open(archivo) as documento:
+                    total_paginas += documento.page_count
+
+            except (OSError, ValueError, RuntimeError):
+                documentos_sin_lectura += 1
+
+        total_mb = total_bytes / (1024 * 1024)
+
+        if documentos_sin_lectura > 0:
+            texto_paginas = (
+                f"{total_paginas} páginas identificadas "
+                f"({documentos_sin_lectura} PDF sin leer)"
+            )
+        else:
+            texto_paginas = f"{total_paginas} páginas"
+
+        self.etiqueta_resumen.setText(
+            f"{texto_paginas} | {total_mb:.2f} MB"
+        )
     def subir_archivo(self):
         """
         Mueve el documento seleccionado

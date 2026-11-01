@@ -163,3 +163,76 @@ def test_sincronizacion_orden(pagina_union, archivos_pdf):
         "a.pdf",
         "b.pdf"
     ]
+
+def test_resumen_paginas_y_tamano(pagina_union, tmp_path):
+    """
+    Comprueba que el resumen calcule correctamente
+    las páginas y el tamaño de los PDF seleccionados.
+    """
+    import pymupdf
+
+    rutas = []
+
+    for numero_paginas in [2, 3]:
+        ruta = tmp_path / f"documento_{numero_paginas}.pdf"
+
+        with pymupdf.open() as documento:
+            for _ in range(numero_paginas):
+                documento.new_page()
+
+            documento.save(ruta)
+
+        rutas.append(ruta)
+
+    pagina_union.agregar_archivos(rutas)
+
+    total_bytes = sum(
+        ruta.stat().st_size for ruta in rutas
+    )
+
+    total_mb = total_bytes / (1024 * 1024)
+
+    assert pagina_union.etiqueta_resumen.text() == (
+        f"5 páginas | {total_mb:.2f} MB"
+    )
+
+
+def test_resumen_se_actualiza_al_eliminar(
+    pagina_union,
+    tmp_path
+):
+    """
+    Comprueba que eliminar un PDF actualice
+    la cantidad total de páginas.
+    """
+    import pymupdf
+
+    rutas = []
+
+    for numero_paginas in [2, 4]:
+        ruta = tmp_path / f"documento_{numero_paginas}.pdf"
+
+        with pymupdf.open() as documento:
+            for _ in range(numero_paginas):
+                documento.new_page()
+
+            documento.save(ruta)
+
+        rutas.append(ruta)
+
+    pagina_union.agregar_archivos(rutas)
+
+    assert "6 páginas" in (
+        pagina_union.etiqueta_resumen.text()
+    )
+
+    pagina_union.lista_archivos.setCurrentRow(1)
+    pagina_union.eliminar_archivo()
+
+    assert "2 páginas" in (
+        pagina_union.etiqueta_resumen.text()
+    )
+
+    assert pagina_union.etiqueta_contador.text() == (
+        "1 archivos seleccionados"
+    )
