@@ -1,3 +1,558 @@
+# DocLab — Laboratorio documental
+
+**Suite documental de escritorio para Windows, desarrollada con Python 3.13 y PySide6.**
+
+> **Estado: preparación de DocLab v1.0.0.** Esta documentación describe el conjunto de funcionalidades implementadas y el proceso de desarrollo. La versión 1.0.0 se está preparando, **no se presenta aquí como publicada**. Última evidencia de pruebas proporcionada por el desarrollador: **368 pruebas automatizadas aprobadas en 9,53 segundos**, el 2 de noviembre de 2026. Se generó y abrió una compilación de Windows con PyInstaller; restan las comprobaciones y decisiones de publicación finales.
+
+**Repositorio:** https://github.com/yurilealjaque/DocLab-Demo
+
+DocLab nació como un conversor PDF a Word y evolucionó hacia una aplicación modular capaz de convertir, reconocer texto, unir, dividir y optimizar PDF, además de generar documentos PDF a partir de imágenes con ajustes visuales. Su diseño privilegia la ejecución local, el control de errores y la protección de los archivos originales.
+
+**Este README tiene dos partes:** (I) una guía consolidada y vigente, redactada para usuarios, desarrolladores y evaluadores; (II) un **archivo histórico íntegro** con el README entregado por el autor. El archivo histórico preserva hitos, decisiones, incidentes y cifras de su momento, pero **sus afirmaciones antiguas no sustituyen el estado actual**.
+
+## Contenido
+
+1. [Descripción y alcance](#1-descripción-y-alcance)
+2. [Funciones disponibles](#2-funciones-disponibles)
+3. [Guías de uso](#3-guías-de-uso)
+4. [Arquitectura](#4-arquitectura)
+5. [Organización del código](#5-organización-del-código)
+6. [Tecnologías y versiones](#6-tecnologías-y-versiones)
+7. [Desarrollo e instalación desde el código](#7-desarrollo-e-instalación-desde-el-código)
+8. [Compilación y distribución Windows](#8-compilación-y-distribución-windows)
+9. [Pruebas y calidad](#9-pruebas-y-calidad)
+10. [Desafíos técnicos y decisiones](#10-desafíos-técnicos-y-decisiones)
+11. [Seguridad, privacidad y límites](#11-seguridad-privacidad-y-límites)
+12. [Historial evolutivo](#12-historial-evolutivo)
+13. [Publicación y roadmap](#13-publicación-y-roadmap)
+14. [Licencias y contribuciones](#14-licencias-y-contribuciones)
+15. [Archivo histórico completo](#15-archivo-histórico-completo)
+
+---
+
+## 1. Descripción y alcance
+
+DocLab es un proyecto de escritorio que reúne operaciones documentales comunes en una interfaz gráfica unificada. Está orientado a personas que trabajan con documentos académicos, administrativos y profesionales, sin necesitar ejecutar comandos para cada conversión.
+
+**Objetivos de ingeniería:**
+
+- Mantener la interfaz desacoplada de los motores documentales.
+- Ejecutar operaciones potencialmente largas fuera del hilo gráfico.
+- Validar entradas, rutas y resultados antes de publicar una salida.
+- Evitar sobrescrituras accidentales y preservar archivos de origen.
+- Probar progresivamente motores, servicios, trabajadores, GUI y navegación.
+- Preparar una distribución Windows que incluya sus dependencias y recursos OCR.
+
+**Alcance de esta versión:** herramientas de conversión y tratamiento PDF e imágenes. DocLab **no** pretende ser un editor integral de PDF, un restaurador fotográfico, un servicio en la nube ni un sistema de certificación de integridad documental.
+
+## 2. Funciones disponibles
+
+| Herramienta | Función principal | Consideración |
+| --- | --- | --- |
+| **PDF → Word (tradicional)** | Genera `.docx` editable desde PDF compatibles utilizando `pdf2docx`. | La maquetación puede variar en archivos complejos. |
+| **PDF → Word (con OCR)** | Reconoce texto de PDF escaneados o mixtos y exporta contenido a Word. | La exactitud depende de calidad del escaneo, idioma y disposición. |
+| **Unir PDF** | Combina varios PDF en el orden elegido. | Existe una incidencia histórica de fidelidad visual en ciertos archivos (DOC-001). |
+| **Dividir PDF** | Extrae rangos, páginas específicas o un PDF por página. | La selección se valida antes del procesamiento. |
+| **Comprimir PDF** | Intenta reducir tamaño mediante optimización estructural sin reducción deliberada de resolución. | No garantiza ahorro; algunas características especiales requieren cautela. |
+| **Imágenes a PDF** | Convierte JPG/JPEG/PNG en un PDF multipágina, con orden, miniaturas y vista previa. | Una imagen por página; no añade automáticamente texto buscable. |
+| **Rotación y ajustes por imagen** | Giro manual, brillo y contraste individuales aplicados al resultado. | Se procesan copias en memoria sin reescribir los originales. |
+
+### PDF a Word: dos estrategias complementarias
+
+**Tradicional.** Es adecuada para PDF digitales con texto seleccionable y estructuras soportadas por `pdf2docx`. El motor valida entrada y destino, produce una salida temporal, comprueba el contenedor DOCX y publica el resultado.
+
+**Con OCR.** Orientada a PDF escaneados o mixtos. La aplicación analiza páginas, distingue contenido digital de zonas con imágenes, utiliza reconocimiento óptico de caracteres mediante PyMuPDF y modelos locales de Tesseract, recupera fragmentos y coordenadas y construye un Word editable mediante estrategias de exportación. No garantiza recrear perfectamente tablas, columnas o estilos. Las imágenes de origen y el texto reconocido pueden generar duplicaciones visuales en algunos casos.
+
+### Unir y dividir PDF
+
+**Unir:** selección múltiple, prevención de rutas duplicadas, cambio de orden, comprobación de documentos, resultado temporal y salida sin sobrescritura. El simple cumplimiento del recuento de páginas **no asegura equivalencia visual**.
+
+**Dividir:** tres modalidades: rango inclusivo (por ejemplo, páginas 3 a 7), lista de páginas específicas en el orden solicitado (por ejemplo `[8, 1, 4]`) y un documento independiente por cada página. Internamente las páginas se traducen desde numeración humana (desde 1) a índices de PyMuPDF (desde 0).
+
+### Comprimir PDF
+
+Intenta reorganizar objetos y flujos internos del archivo usando PyMuPDF. El resultado se compara con el original: si no se consigue una reducción válida, la aplicación lo comunica en vez de prometer una compresión inexistente. Se incluyen verificaciones estructurales básicas; **no constituyen una comparación visual exhaustiva**. Debe extremarse la precaución con PDF firmados o que contengan objetos especiales.
+
+### Imágenes a PDF
+
+La herramienta permite:
+
+- Importar imágenes `.jpg`, `.jpeg` y `.png` con validación de formato real, lectura, tamaño y dimensiones.
+- Añadir múltiples imágenes sin incorporación parcial de un lote inválido y rechazar duplicados.
+- Cambiar el orden, eliminar elementos de la selección y conservar originales en disco.
+- Consultar miniaturas y previsualización ampliada, con atención a la orientación EXIF.
+- Aplicar rotaciones individuales de 0°, 90°, 180° y 270°.
+- Ajustar brillo y contraste individualmente entre -100 y +100, restablecer valores y visualizar cambios.
+- Generar un PDF multipágina respetando secuencia y transformaciones.
+
+**Nombre de producto:** «Imágenes a PDF»; los nombres internos de módulos y clases conservan `photos_to_pdf` / `Fotografias`, para evitar refactorizaciones innecesarias.
+
+## 3. Guías de uso
+
+### 3.1 Convertir PDF a Word
+
+1. Abrir DocLab y acceder a **Convertir**.
+2. Seleccionar o arrastrar un PDF.
+3. Elegir la modalidad **Tradicional** para PDF digital o **Con OCR** para PDF escaneado/mixto.
+4. Pulsar el botón de conversión y escoger un archivo `.docx` de destino no existente.
+5. Esperar el aviso y revisar el Word obtenido, especialmente su estructura y el texto.
+
+### 3.2 Unir PDF
+
+1. Entrar a **Unir PDF** y agregar al menos dos archivos.
+2. Comprobar su selección y reorganizarlos con los controles de subir/bajar.
+3. Elegir un destino nuevo y ejecutar.
+4. Verificar **cantidad de páginas y contenido visual** de las páginas de transición entre documentos. Con PDF complejos, revisar manualmente el resultado antes de compartirlo.
+
+### 3.3 Dividir PDF
+
+1. Abrir **Dividir PDF**, elegir el archivo y revisar el número de páginas informado.
+2. Seleccionar rango, páginas específicas o separación completa.
+3. Introducir los números solicitados y elegir archivo o carpeta de destino.
+4. Generar, abrir y revisar las salidas.
+
+### 3.4 Comprimir PDF
+
+1. Abrir **Comprimir PDF** y escoger el origen.
+2. Definir un destino distinto.
+3. Ejecutar la optimización.
+4. Revisar el ahorro informado, si lo hay, y abrir el resultado para comprobar su integridad visual.
+
+### 3.5 Imágenes a PDF
+
+1. Abrir **Imágenes a PDF** desde el menú o Inicio.
+2. Agregar fotografías JPG/JPEG/PNG.
+3. Revisar las miniaturas, seleccionar una imagen y visualizarla ampliada.
+4. Organizar, quitar o girar cada imagen según corresponda.
+5. Ajustar brillo y contraste individualmente o restablecer los valores.
+6. Generar el documento y seleccionar una ruta libre.
+7. Abrir el PDF y comprobar páginas, orden, rotación, legibilidad y ajustes.
+
+## 4. Arquitectura
+
+El proyecto adopta una **separación de responsabilidades** entre la presentación, el trabajo en segundo plano, la coordinación de operaciones y el motor documental:
+
+```text
+                 Usuario (Windows)
+                        |
+                        v
+        UI PySide6 / QMainWindow / páginas
+                        |
+                        v
+           QThread / señales de resultado
+                        |
+                        v
+                 Servicio de aplicación
+                        |
+                        v
+         Motor documental y validadores
+          /            |              \
+         v             v               v
+      PyMuPDF       pdf2docx        Qt / NumPy
+         \             |               /
+          \            |              /
+                  Archivo temporal
+                        |
+                        v
+                Verificación de salida
+                        |
+                        v
+           Publicación sin sobrescritura
+                        |
+                        v
+             Señal de éxito / error a UI
+```
+
+**UI.** Recoge las entradas y muestra formularios, controles, avisos, indicadores de actividad y resultados; la navegación se organiza con `QStackedWidget`.
+
+**Trabajador.** Ejecuta operaciones fuera del hilo principal mediante `QThread` y devuelve señales. El cierre normal se bloquea mientras existan trabajos activos o en finalización, según la herramienta.
+
+**Servicio.** Coordina la solicitud y delega en el motor, manteniendo la interfaz desacoplada de las bibliotecas de documentos.
+
+**Motor documental.** Aplica validaciones, convierte o transforma archivos, comprueba el resultado y gestiona temporales. Algunas operaciones publican el archivo mediante `os.link()`, que evita sustituir un destino preexistente pero requiere soporte del sistema de archivos.
+
+### Ejemplo: Imágenes a PDF
+
+```text
+PaginaFotosPDF
+   → TrabajadorFotosPDF (QThread)
+   → ServicioFotosPDF
+   → generar_pdf_fotografias()
+        ├── GestorFotografias / validación
+        ├── orientación EXIF y rotación
+        ├── brillo y contraste
+        ├── composición mediante PyMuPDF
+        └── validación y publicación
+```
+
+## 5. Organización del código
+
+Resumen de los directorios y archivos relevantes; se excluyen cachés, dependencias instaladas y fixtures locales.
+
+```text
+DocLab/
+├── src/doclab/
+│   ├── main.py                     # Arranque, logging y recursos
+│   ├── ui/
+│   │   ├── main_window.py          # Navegación / cierre de aplicación
+│   │   ├── pages/
+│   │   │   ├── home_page.py
+│   │   │   ├── converter_page.py
+│   │   │   ├── pdf_merge_page.py
+│   │   │   ├── pdf_split_page.py
+│   │   │   ├── pdf_compress_page.py
+│   │   │   ├── photos_to_pdf_page.py
+│   │   │   └── about_page.py
+│   │   ├── widgets/
+│   │   └── styles/theme.qss
+│   ├── document_engine/
+│   │   ├── pdf_to_word.py
+│   │   ├── pdf_validator.py
+│   │   ├── ocr_engine.py
+│   │   ├── ocr_document.py
+│   │   ├── ocr_unified.py
+│   │   ├── pdf_content_detector.py
+│   │   ├── image_coverage.py
+│   │   ├── pdf_layout.py
+│   │   ├── pdf_image_extractor.py
+│   │   ├── pdf_merger.py
+│   │   ├── pdf_splitter.py
+│   │   ├── pdf_compressor.py
+│   │   ├── image_validator.py
+│   │   ├── photo_manager.py
+│   │   ├── image_adjustments.py
+│   │   └── photos_to_pdf.py
+│   ├── services/                    # Servicios de cada herramienta
+│   ├── workers/                     # Trabajadores QThread
+│   ├── infrastructure/logger.py
+│   └── resources/
+│       ├── icons/doclab.ico
+│       └── tessdata/
+│           ├── .gitkeep
+│           ├── spa.traineddata      # Solo entorno local / distribución
+│           └── eng.traineddata      # Solo entorno local / distribución
+├── tests/                           # Pruebas unitarias e integración
+├── pyproject.toml
+├── DocLab.spec                      # Configuración PyInstaller
+├── .gitignore
+└── README.md
+```
+
+Las estructuras históricas más detalladas, incluidos módulos OCR y archivos de pruebas por etapa, se conservan en el **archivo histórico íntegro** del final.
+
+## 6. Tecnologías y versiones
+
+| Componente | Función | Evidencia de entorno compartida (02-11-2026) |
+| --- | --- | --- |
+| Python | Lenguaje principal | 3.13.7 |
+| PySide6 / Qt Widgets | GUI, señales, hilos, imágenes | 6.12.0 |
+| PyMuPDF (`pymupdf`) | Validación, lectura, OCR y manipulación PDF | 1.28.2 |
+| `pdf2docx` | Conversión tradicional PDF a DOCX | 0.5.13 |
+| `python-docx` | Construcción/verificación DOCX | Instalado; versión no consignada |
+| NumPy | Operaciones sobre píxeles en ajustes visuales | Utilizado en módulo de imágenes; versión no consignada |
+| OCR de Tesseract mediante PyMuPDF | Reconocimiento local de texto | Modelos `spa` / `eng` |
+| `pytest` | Pruebas automatizadas | 9.2.0 en la última ejecución |
+| PyInstaller | Empaquetado Windows | 6.22.3 |
+| Git / GitHub | Versionado / distribución prevista | Rama principal `main` |
+
+El archivo `pyproject.toml` consultado durante el desarrollo aún indicaba `version = "0.1.0"`. **La transición a `1.0.0` forma parte del cierre del lanzamiento**. No se debe confundir la versión objetivo con una versión ya publicada.
+
+## 7. Desarrollo e instalación desde el código
+
+### Requisitos
+
+- Windows (sistema principal probado); Python **3.13** y Git.
+- Conectividad para instalar paquetes y descargar modelos OCR por separado.
+- Espacio de almacenamiento suficiente para dependencias gráficas y documentos.
+
+### Instalación mediante Git Bash
+
+```bash
+git clone https://github.com/yurilealjaque/DocLab-Demo.git
+cd DocLab-Demo
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+### Modelos OCR para desarrollo
+
+Los archivos `spa.traineddata` y `eng.traineddata` **no forman parte del repositorio**. Deben obtenerse de una fuente adecuada, como el repositorio oficial de datos de Tesseract, comprobando su procedencia y licencia, y ubicarse en:
+
+```text
+src/doclab/resources/tessdata/
+```
+
+El motor revisa que los modelos requeridos existan y no estén vacíos. El ejecutable distribuido debe incorporarlos para no obligar al usuario final a configurarlos.
+
+### Ejecutar y probar
+
+```bash
+doclab
+python -m pytest -q --tb=short
+```
+
+La ejecución desde el código fuente utiliza el entorno virtual; la distribución Windows tiene un procedimiento diferente.
+
+## 8. Compilación y distribución Windows
+
+DocLab se empaqueta con PyInstaller en modalidad **`onedir`** (directorio), que facilita localizar dependencias y recursos y depurar problemas de instalación.
+
+### Configuración
+
+El archivo `DocLab.spec` incluye:
+
+- Script de entrada `src/doclab/main.py` y ruta de paquetes `src`.
+- Icono `src/doclab/resources/icons/doclab.ico` como icono del ejecutable.
+- Recursos `doclab.ico`, `theme.qss` y directorio de modelos OCR dentro del paquete.
+- Aplicación gráfica sin consola (`console=False`).
+- Directorio de salida `dist/DocLab/`.
+
+### Construir el ejecutable
+
+Con el entorno activo, los modelos OCR ya situados en su carpeta y PyInstaller instalado:
+
+```bash
+python -m PyInstaller --noconfirm --clean DocLab.spec
+```
+
+Resultado esperado:
+
+```text
+dist/
+└── DocLab/
+    ├── DocLab.exe
+    └── _internal/
+        └── ... recursos y dependencias empaquetados ...
+```
+
+**No basta con copiar `DocLab.exe`:** debe conservarse toda la carpeta `dist/DocLab/`, porque esta compilación usa `onedir`.
+
+### Incidencia de empaquetado y solución
+
+En el primer ejecutable la aplicación abría, pero el tema grafito-violeta no se aplicaba. Se comprobó que `theme.qss` sí estaba presente bajo `dist/DocLab/_internal/doclab/ui/styles/`; el problema se abordó adaptando la resolución de rutas de recursos en `main.py` para ejecución empaquetada y desde fuente. Tras recompilar, el autor confirmó que el tema volvió a funcionar.
+
+### Validación de distribución
+
+Se confirmó durante el desarrollo que el ejecutable abría, con tema e identidad visual, y se reportó funcionamiento de PDF a Word y OCR. **Antes de publicar el ZIP definitivo**, conviene extraer la carpeta en una ubicación distinta del proyecto y realizar una matriz de pruebas manuales de cada herramienta, especialmente unión de PDF.
+
+### Archivo previsto para GitHub Releases
+
+```text
+DocLab-v1.0.0-Windows-x64.zip
+└── DocLab/
+    ├── DocLab.exe
+    └── _internal/
+```
+
+Este nombre es **una propuesta de distribución**, no prueba de una publicación existente. La carpeta `dist/` y `build/` se excluyen del repositorio Git; el archivo ZIP final se publicaría en **GitHub Releases**, mientras que GitHub conservaría el código y `DocLab.spec`.
+
+## 9. Pruebas y calidad
+
+### Resultados registrados durante el desarrollo
+
+La estrategia combina pruebas unitarias, integración, GUI, simulaciones de error, pruebas manuales con archivos reales y comprobaciones del ejecutable.
+
+| Hito | Resultado comunicado | Observación |
+| --- | --- | --- |
+| Primeras pruebas | 13 aprobadas | Conversión y validación PDF. |
+| Integración OCR | 124 aprobadas | OCR, estructuras e integración. |
+| Evolución UI/UX | Más de 180 pruebas | Se corrigieron errores de construcción Qt y se volvió a validar. |
+| Compresión PDF | 219 aprobadas | Motor, servicio, trabajador e interfaz. |
+| Imágenes a PDF y mejoras | Crecimiento incremental posterior | Miniaturas, previsualización, rotaciones y ajustes. |
+| **Última ejecución total aportada** | **368 aprobadas en 9,53 s** | `python -m pytest -q --tb=short` en Windows, Python 3.13.7. |
+
+**Nota de trazabilidad:** algunas continuaciones históricas anotan «369 pruebas» como cálculo esperado. La evidencia más reciente de la terminal reportó **368**, por lo que se utiliza este recuento en la portada. Los números históricos se mantienen en el anexo como registro de cada etapa, no como estado final vigente.
+
+### Estrategias de prueba
+
+- Archivos PDF e imágenes sintéticas y temporales con propiedades controladas.
+- Validaciones de entradas ausentes, extensiones falsas, archivos corruptos y protección por contraseña.
+- Pruebas de valores límite, páginas, ordenamiento, duplicados y operaciones atómicas por lote.
+- Simulación de fallos con `monkeypatch`, comprobación de temporales y ausencia de sobrescritura.
+- Pruebas de workers Qt, señales y estados de interfaz.
+- Verificación manual de OCR, miniaturas, rotación, ajuste y generación de salidas.
+- Comparación de estructura y elementos detectables del PDF de salida, sin confundirla con equivalencia visual completa.
+
+Ejecutar pruebas completas:
+
+```bash
+python -m pytest -q --tb=short
+```
+
+### Criterios de aceptación para v1.0.0
+
+- Suite automatizada aprobada con código correspondiente al paquete distribuido.
+- Aplicación ejecutable sin depender del entorno Python de desarrollo.
+- Recurso QSS, icono y modelos OCR presentes y utilizables en el paquete.
+- Revisión funcional de conversión tradicional y OCR, unión, división, compresión e imágenes a PDF.
+- Resultados documentales inspeccionados visualmente, en especial transiciones entre archivos unidos.
+- Limitaciones conocidas descritas con claridad y decisiones de licencia/distribución resueltas.
+
+## 10. Desafíos técnicos y decisiones
+
+### 10.1 Proteger originales y destinos
+
+**Problema:** una operación documental no debe sobrescribir datos sin autorización ni dejar archivos incompletos cuando falla a mitad del procesamiento.
+
+**Enfoque:** validar entradas y rutas, generar archivos temporales en la carpeta de destino, verificar propiedades básicas y publicar usando `os.link()` en los motores que adoptaron esta estrategia. Se incorporaron pruebas con archivos preexistentes y errores simulados.
+
+**Límite:** `os.link()` depende de permisos y compatibilidad del sistema de archivos. La limpieza y publicación no cubren todos los escenarios de apagado inesperado o intervención externa.
+
+### 10.2 Combinar PDF preservando fidelidad visual (DOC-001)
+
+**Problema real:** en la unión de tres documentos (56, 39 y 2 páginas), el archivo final debía contener 97 páginas. Se observó una incidencia visual en la **página 96**, primera página del tercer PDF, que aparecía parcial o mayormente vacía pese al recuento correcto. Se observaron además errores internos de recursos PDF en pruebas diagnósticas.
+
+**Investigación realizada:** se compararon recorridos de copia e incluso se ensayó `show_pdf_page()`; el resultado comunicado no resolvió concluyentemente el problema.
+
+**Estado:** **incidencia abierta históricamente**; las pruebas genéricas aprobadas no demuestran que el caso concreto se haya corregido. Se requieren archivos reproducibles y pruebas de comparación de renderizado. Este caso debe quedar explícito en las notas de versión o resolverse antes de anunciar compatibilidad amplia.
+
+### 10.3 Gestionar OCR con recursos locales
+
+**Problema:** el reconocimiento necesita modelos `spa.traineddata` y `eng.traineddata`; al inicio se detectó un error de recursos ausentes.
+
+**Enfoque:** verificar carpeta e idiomas, informar fallos específicos, conservar los modelos fuera de Git e incorporarlos en el empaquetado Windows. Se usó el flujo OCR de PyMuPDF con modelos locales y procesamiento de páginas completas o mixtas.
+
+**Límite:** la calidad OCR depende de la resolución y de las características del documento. No se garantiza un orden de lectura perfecto ni reproducción idéntica en Word.
+
+### 10.4 Reconstruir un DOCX a partir de un PDF
+
+**Problema:** las coordenadas, imágenes y fragmentos de texto del PDF no equivalen directamente a la estructura de un documento Word editable.
+
+**Enfoque:** módulos de extracción de imágenes, bloques de texto, orden geométrico, planificación de maquetación y exportadores DOCX, manteniendo la conversión tradicional como alternativa.
+
+**Límite:** pueden perderse estilos, tablas, columnas, ubicaciones exactas y partes de la apariencia original; ciertas imágenes con texto OCR pueden producir duplicaciones visuales.
+
+### 10.5 Mantener una interfaz receptiva y coherente
+
+**Problema:** el procesamiento documental puede tardar; bloquear el hilo Qt impide interactuar con la aplicación.
+
+**Enfoque:** `QThread`, señales, bloqueo temporal de controles incompatibles, estado visible y protección ante cierre normal durante operaciones. El tema QSS se consolidó en grafito y violeta. La navegación se organiza por herramientas, con scroll en formularios largos.
+
+**Aprendizajes:** se corrigieron fallos por conexiones de señales antes de declararlas y un error Qt causado por añadir al layout el resultado de `setStyleSheet()` (que devuelve `None`). La sintaxis válida no sustituye las pruebas de ejecución y visualización.
+
+### 10.6 Previsualizar imágenes sin ampliaciones o uso excesivo de memoria
+
+**Problema:** las fotos de celular pueden ocupar gran cantidad de memoria al decodificarse. En una prueba, una imagen de 120 × 60 se había ampliado involuntariamente a 1000 × 500 al utilizar `setScaledSize()`.
+
+**Enfoque:** decodificación reducida para imágenes grandes, sin agrandar fotografías pequeñas; miniaturas y vista ampliada sincronizadas con selección, rotación y orden. La corrección se verificó con pruebas que comprobaron dimensiones de imágenes pequeñas.
+
+### 10.7 Asegurar consistencia entre vista previa y PDF exportado
+
+**Problema:** una rotación o ajuste aplicado solo a la GUI no modifica el documento generado.
+
+**Enfoque:** `GestorFotografias` almacena transformaciones por imagen; el motor de PDF consulta los ajustes, aplica orientación, rotación y procesamiento visual y crea cada página con la imagen transformada. Se construyeron incrementos separados para gestor, motor y UI.
+
+### 10.8 Empaquetar una GUI con OCR y recursos de estilo
+
+**Problema:** la primera compilación `onedir` encontró el QSS en disco pero lo omitía visualmente al abrir la aplicación.
+
+**Enfoque:** configuración `DocLab.spec` y resolución diferenciada de recursos en ejecución empaquetada, con incorporación de `.ico`, `.qss` y modelos OCR. Se reconstruyó y comprobó visualmente el ejecutable.
+
+### 10.9 Disciplina de desarrollo incremental
+
+**Método:** diseño del componente → implementación → pruebas dirigidas → suite total → comprobación manual → commit descriptivo cuando el incremento es estable. Este método permitió localizar regresiones sin reemplazar arbitrariamente funciones previamente aprobadas.
+
+## 11. Seguridad, privacidad y límites
+
+### Privacidad y funcionamiento local
+
+Los motores documentales descritos trabajan localmente mediante bibliotecas en el equipo. El proyecto no incorpora un servicio propio de subida de documentos a la nube. El código de pruebas y los registros deben evitar exponer material privado.
+
+### Comprobaciones implementadas
+
+- Verificación de PDF e imágenes antes de procesar.
+- Manejo de PDF protegidos/corruptos en los flujos que incluyen el validador.
+- Restricciones de rutas de salida y prevención de sobrescritura.
+- Gestión de temporales y comprobaciones de salidas generadas.
+- Mensajes de error y registros locales para diagnóstico.
+
+### Limitaciones relevantes
+
+- **Fidelidad PDF → Word:** la estructura y la apariencia pueden diferir del documento original.
+- **OCR:** no garantiza exactitud de reconocimiento ni orden perfecto de lectura.
+- **Unión PDF:** incidencia DOC-001 descrita en el apartado anterior.
+- **Compresión:** ahorro no garantizado; PDF firmados o con características particulares pueden requerir tratamiento especial.
+- **Imágenes a PDF:** no incorpora corrección de perspectiva, OCR buscable específico ni restauración avanzada.
+- **Operaciones concurrentes:** no existe cancelación segura universal ni recuperación integral ante terminación forzada.
+- **Rutas y publicación:** el mecanismo de enlaces físicos no funciona en todos los destinos.
+- **Escalabilidad:** faltan pruebas exhaustivas de rendimiento con archivos grandes y otras configuraciones de Windows.
+- **Accesibilidad:** hay margen para mejorar teclado, escalado, foco y lectura de controles.
+
+**Recomendación al usuario final:** conservar el documento original y revisar visualmente el archivo generado antes de usarlo en procesos sensibles.
+
+## 12. Historial evolutivo
+
+DocLab no nació como una suite completa: su alcance fue creciendo en respuesta a pruebas, decisiones de diseño y nuevas necesidades de uso.
+
+| Etapa / hito | Desarrollo destacado | Aprendizaje principal |
+| --- | --- | --- |
+| Prototipo inicial | PDF a Word con `pdf2docx`, interfaz básica | Separar lógica documental de presentación. |
+| Validación y robustez | Validador PDF, temporales, logging, workers | Verificación previa y fallos controlados. |
+| OCR | PDF escaneados y mixtos, modelos locales, exportación Word | Reconocimiento y maquetación son problemas distintos. |
+| Gestión PDF | Unión y división con tres modalidades | Contar páginas no garantiza fidelidad de contenido. |
+| UI/UX | Inicio por tarjetas, navegación y tema grafito-violeta | La claridad y legibilidad son parte de la calidad. |
+| Compresión | Optimización estructural sin degradación deliberada | No todos los documentos son comprimibles. |
+| Imágenes a PDF | Validación, gestor, PDF multipágina | Reutilización de arquitectura y no destructividad. |
+| Incrementos 7A–7B | Miniaturas y previsualización | Reducir lectura de imágenes grandes. |
+| Incrementos 8A–8B.2 | Rotaciones en gestor, motor y GUI | Vista previa y salida deben ser coherentes. |
+| Incrementos 9A–9D | Brillo y contraste por imagen | Transformaciones independientes y verificables. |
+| Preparación v1.0.0 | Icono, PyInstaller, QSS y OCR empaquetados | Recursos y rutas también forman parte del software. |
+
+La documentación íntegra que sigue conserva la narración y los detalles de cada etapa original, incluidos cambios de planificación, mensajes de commit propuestos e incidencias.
+
+## 13. Publicación y roadmap
+
+### Situación actual de lanzamiento
+
+**Objetivo de publicación:** v1.0.0 para Windows. A la fecha de esta consolidación existe una compilación `onedir` generada y ejecutada, pero no se acredita aquí que haya sido publicada como release oficial ni que haya superado una matriz completa de pruebas en una máquina limpia.
+
+### Lista de cierre
+
+- [x] Desarrollar las herramientas actuales.
+- [x] Superar la suite de 368 pruebas comunicada.
+- [x] Integrar icono y diseño de DocLab.
+- [x] Generar `DocLab.exe` con PyInstaller.
+- [x] Recuperar QSS e incluir recursos en el empaquetado.
+- [ ] Confirmar revisión integral de la distribución extraída fuera del proyecto.
+- [ ] Resolver, delimitar o documentar formalmente DOC-001 para el lanzamiento.
+- [ ] Revisar licencias y avisos de componentes y modelos OCR que se redistribuirán.
+- [ ] Sincronizar `pyproject.toml` con la versión definitiva `1.0.0`.
+- [ ] Publicar ZIP de Windows, tag `v1.0.0` y notas en GitHub Releases.
+
+### Funciones reservadas para versiones posteriores
+
+- Organizador visual de páginas PDF.
+- PDF a imágenes y herramientas de numeración o marcas de agua.
+- Corrección de perspectiva y limpieza avanzada de fotografías.
+- OCR buscable integrado directamente a Imágenes a PDF.
+- Comparación de versiones de documentos.
+- Redacción permanente de datos sensibles, sujeta a pruebas y auditoría de seguridad específicas.
+- Historial local de operaciones, progreso por página y cancelación controlada.
+- Automatización o procesamiento por lotes.
+
+Estas ideas **no son funciones presentes de v1.0.0** y no constituyen un compromiso de fechas o implementación.
+
+## 14. Licencias y contribuciones
+
+**Licencia del proyecto:** en el README histórico se señala que aún no se ha definido. Debe adoptarse y publicarse un archivo `LICENSE` antes de presentar condiciones definitivas de reutilización.
+
+**Dependencias de terceros:** las bibliotecas y los modelos OCR tienen licencias propias. Antes de distribuir un ejecutable públicamente —y especialmente para usos comerciales— es necesario verificar sus condiciones vigentes, obligaciones de atribución, distribución de avisos y posibles requisitos de disponibilidad del código. Son particularmente relevantes PySide6/Qt y PyMuPDF. La presencia de dependencias libres no equivale automáticamente a autorización para cualquier modalidad de distribución.
+
+**Contribuciones:** incidencias, propuestas de mejora y discusiones técnicas pueden organizarse mediante GitHub Issues y Pull Requests, si se habilitan para el repositorio.
+
+**Nota sobre autoría:** este README describe el proyecto y su evolución técnica sin atribuir funciones no verificadas ni anunciar certificaciones de seguridad que no se hayan realizado.
+
+---
+
+## 15. Archivo histórico completo
+
+> **Registro íntegro, preservado sin suprimir información.** El texto que sigue reproduce el README recibido para esta consolidación (1.721 líneas de contenido). Incluye apartados sucesivos que en su momento se escribieron como continuaciones independientes. Los textos sobre «funciones futuras», cifras antiguas de pruebas, versiones iniciales y empaquetado pendiente **son testimonios del estado histórico**. Para conocer las capacidades presentes y la situación de lanzamiento, consultar primero los apartados 1–14.
+
+<details>
+<summary><strong>Abrir el README histórico íntegro (prototipo inicial, OCR, unión/división, UI/UX, compresión e Imágenes a PDF)</strong></summary>
+
 # DocLab
 
 **Aplicación de escritorio para convertir y gestionar documentos, desarrollada con Python y PySide6.**
@@ -1719,3 +2274,5 @@ Las pruebas automáticas se complementaron con comprobaciones manuales de import
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+
+</details>
