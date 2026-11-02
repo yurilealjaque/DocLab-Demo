@@ -14,7 +14,7 @@ No modifica los archivos originales.
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize, QEvent
-from PySide6.QtGui import QCloseEvent, QIcon, QImage, QImageReader, QPixmap
+from PySide6.QtGui import QCloseEvent, QIcon, QImage, QImageReader, QPixmap, QTransform
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -210,12 +210,23 @@ class PaginaFotosPDF(QWidget):
         fila_botones.addWidget(self.boton_bajar)
         fila_botones.addWidget(self.boton_quitar)
 
+        # Los giros se guardan en el gestor, sin editar los originales.
+        self.boton_rotar_izquierda = QPushButton("Girar izquierda 90°")
+        self.boton_rotar_derecha = QPushButton("Girar derecha 90°")
+        self.boton_rotar_izquierda.clicked.connect(self.rotar_izquierda)
+        self.boton_rotar_derecha.clicked.connect(self.rotar_derecha)
+
+        fila_rotacion = QHBoxLayout()
+        fila_rotacion.addWidget(self.boton_rotar_izquierda)
+        fila_rotacion.addWidget(self.boton_rotar_derecha)
+
         contenido_organizacion.addWidget(
             explicacion_orden
         )
         contenido_organizacion.addLayout(
             fila_botones
         )
+        contenido_organizacion.addLayout(fila_rotacion)
 
         diseno.addWidget(grupo_organizacion)
 
@@ -328,7 +339,20 @@ class PaginaFotosPDF(QWidget):
 
         return cantidad
 
-    def crear_icono_miniatura(self, ruta):
+    @staticmethod
+    def aplicar_rotacion(imagen, grados):
+        """Rota la copia en memoria; la orientación EXIF ya fue aplicada.
+
+        Los grados siguen la convención horaria de GestorFotografias.
+        """
+        if imagen.isNull() or grados == 0:
+            return imagen
+        return imagen.transformed(
+            QTransform().rotate(grados),
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+    def crear_icono_miniatura(self, ruta, grados=0):
         """Carga una miniatura pequeña, sin modificar la imagen original.
 
         QImageReader intenta reducir el tamaño durante la lectura para
@@ -350,6 +374,7 @@ class PaginaFotosPDF(QWidget):
         if imagen.isNull():
             return QIcon()
 
+        imagen = self.aplicar_rotacion(imagen, grados)
         miniatura = QPixmap.fromImage(imagen).scaled(
             QSize(96, 72),
             Qt.AspectRatioMode.KeepAspectRatio,
@@ -364,11 +389,12 @@ class PaginaFotosPDF(QWidget):
         fotografias = self.gestor.obtener_fotografias()
 
         for numero, fotografia in enumerate(fotografias, start=1):
+            grados = self.gestor.obtener_rotacion(numero - 1)
             elemento = QListWidgetItem(
                 f"{numero}. {fotografia.ruta.name}"
             )
             elemento.setIcon(
-                self.crear_icono_miniatura(fotografia.ruta)
+                self.crear_icono_miniatura(fotografia.ruta, grados)
             )
             elemento.setToolTip(str(fotografia.ruta))
             self.lista_fotografias.addItem(elemento)
@@ -412,7 +438,13 @@ class PaginaFotosPDF(QWidget):
         lector = QImageReader(str(ruta))
         lector.setAutoTransform(True)
         tamano_original = lector.size()
-        if tamano_original.isValid():
+        if (
+            tamano_original.isValid()
+            and (
+                tamano_original.width() > 1000
+                or tamano_original.height() > 800
+            )
+        ):
             lector.setScaledSize(
                 tamano_original.scaled(
                     QSize(1000, 800),
@@ -420,7 +452,9 @@ class PaginaFotosPDF(QWidget):
                 )
             )
 
-        self.imagen_vista_previa = lector.read()
+        imagen = lector.read()
+        grados = self.gestor.obtener_rotacion(posicion)
+        self.imagen_vista_previa = self.aplicar_rotacion(imagen, grados)
         self.dibujar_vista_previa()
 
     def dibujar_vista_previa(self):
@@ -467,9 +501,33 @@ class PaginaFotosPDF(QWidget):
             not activo and 0 <= posicion < cantidad
         )
 
+        puede_rotar = not activo and 0 <= posicion < cantidad
+        self.boton_rotar_izquierda.setEnabled(puede_rotar)
+        self.boton_rotar_derecha.setEnabled(puede_rotar)
+
         self.boton_generar.setEnabled(
             not activo and cantidad > 0
         )
+
+    def rotar_izquierda(self):
+        """Gira la imagen elegida 90° a la izquierda."""
+        if self.hay_operacion_activa():
+            return
+        indice = self.lista_fotografias.currentRow()
+        if indice < 0 or indice >= self.gestor.cantidad():
+            return
+        self.gestor.rotar_izquierda(indice)
+        self.actualizar_lista(indice)
+
+    def rotar_derecha(self):
+        """Gira la imagen elegida 90° a la derecha."""
+        if self.hay_operacion_activa():
+            return
+        indice = self.lista_fotografias.currentRow()
+        if indice < 0 or indice >= self.gestor.cantidad():
+            return
+        self.gestor.rotar_derecha(indice)
+        self.actualizar_lista(indice)
 
     def subir_fotografia(self):
         """Mueve la fotografia seleccionada hacia arriba."""

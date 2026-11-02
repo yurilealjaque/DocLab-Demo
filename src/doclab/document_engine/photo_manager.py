@@ -1,3 +1,4 @@
+"""Gestión ordenada de imágenes y sus rotaciones no destructivas."""
 
 import os
 from pathlib import Path
@@ -9,161 +10,141 @@ from doclab.document_engine.image_validator import (
 
 
 class ErrorGestionFotografias(Exception):
-    """Error general al gestionar fotografias."""
+    """Error general al gestionar fotografías."""
 
 
 class FotografiaDuplicadaError(ErrorGestionFotografias):
-    """La fotografia ya esta incorporada a la coleccion."""
+    """La fotografía ya está incorporada a la colección."""
 
 
 class FotografiaNoEncontradaError(ErrorGestionFotografias):
-    """La fotografia solicitada no esta en la coleccion."""
+    """La fotografía solicitada no está en la colección."""
 
 
 class GestorFotografias:
-    """
-    Gestiona una coleccion ordenada de fotografias.
+    """Colección ordenada de fotografías, sin modificar los originales.
 
-    No modifica, mueve ni elimina archivos originales.
+    Las rotaciones se almacenan en memoria por ruta normalizada y se expresan
+    en grados en el sentido de las agujas del reloj: 0, 90, 180 o 270.
     """
 
     def __init__(self):
         self._fotografias: list[InformacionImagen] = []
+        self._rotaciones: dict[str, int] = {}
 
     @staticmethod
     def _normalizar_ruta(ruta_archivo) -> str:
-        """
-        Normaliza una ruta para comparar archivos.
-
-        En Windows evita diferencias por mayusculas,
-        minusculas y rutas relativas.
-        """
+        """Normaliza rutas; en Windows también normaliza mayúsculas."""
         ruta = Path(ruta_archivo).resolve()
         return os.path.normcase(str(ruta))
 
     def obtener_fotografias(self) -> tuple[InformacionImagen, ...]:
-        """Devuelve una vista inmutable de la coleccion."""
+        """Devuelve una vista inmutable de la colección ordenada."""
         return tuple(self._fotografias)
 
     def cantidad(self) -> int:
-        """Devuelve la cantidad de fotografias."""
+        """Devuelve la cantidad de fotografías."""
         return len(self._fotografias)
 
     def agregar_fotografia(self, ruta_archivo) -> InformacionImagen:
-        """
-        Valida y agrega una fotografia al final.
-
-        No permite agregar dos veces la misma ruta.
-        """
-        ruta_normalizada = self._normalizar_ruta(ruta_archivo)
+        """Valida e incorpora una fotografía, rechazando duplicados."""
+        clave = self._normalizar_ruta(ruta_archivo)
 
         for fotografia in self._fotografias:
-            if self._normalizar_ruta(fotografia.ruta) == ruta_normalizada:
+            if self._normalizar_ruta(fotografia.ruta) == clave:
                 raise FotografiaDuplicadaError(
-                    "La fotografia ya fue agregada."
+                    "La fotografía ya fue agregada."
                 )
 
         informacion = validar_imagen(ruta_archivo)
-
         self._fotografias.append(informacion)
+        self._rotaciones[clave] = 0
         return informacion
 
     def agregar_fotografias(self, rutas_archivos) -> int:
-        """
-        Agrega multiples fotografias.
-
-        La operacion es todo o nada:
-        si existe un error, no agrega ninguna.
-
-        Retorna la cantidad incorporada.
-        """
+        """Agrega un lote de forma atómica: ante un error no cambia nada."""
         rutas = list(rutas_archivos)
-
         rutas_existentes = {
             self._normalizar_ruta(fotografia.ruta)
             for fotografia in self._fotografias
         }
-
         nuevas_fotografias = []
         rutas_nuevas = set()
 
         for ruta_archivo in rutas:
-            ruta_normalizada = self._normalizar_ruta(ruta_archivo)
-
-            if (
-                ruta_normalizada in rutas_existentes
-                or ruta_normalizada in rutas_nuevas
-            ):
+            clave = self._normalizar_ruta(ruta_archivo)
+            if clave in rutas_existentes or clave in rutas_nuevas:
                 raise FotografiaDuplicadaError(
-                    "La seleccion contiene una fotografia duplicada."
+                    "La selección contiene una fotografía duplicada."
                 )
-
             informacion = validar_imagen(ruta_archivo)
-
             nuevas_fotografias.append(informacion)
-            rutas_nuevas.add(ruta_normalizada)
+            rutas_nuevas.add(clave)
 
         self._fotografias.extend(nuevas_fotografias)
-
+        for clave in rutas_nuevas:
+            self._rotaciones[clave] = 0
         return len(nuevas_fotografias)
 
     def quitar_fotografia(self, indice: int) -> InformacionImagen:
-        """
-        Quita una fotografia de la coleccion.
-
-        No elimina el archivo del disco.
-        """
+        """Quita la fotografía y su rotación; no borra el archivo."""
         self._validar_indice(indice)
-        return self._fotografias.pop(indice)
+        fotografia = self._fotografias.pop(indice)
+        self._rotaciones.pop(self._normalizar_ruta(fotografia.ruta), None)
+        return fotografia
 
     def subir_fotografia(self, indice: int) -> bool:
-        """
-        Sube una fotografia una posicion.
-
-        Retorna False si ya esta en la primera posicion.
-        """
+        """Sube la fotografía una posición, sin perder su rotación."""
         self._validar_indice(indice)
-
         if indice == 0:
             return False
-
         self._fotografias[indice - 1], self._fotografias[indice] = (
             self._fotografias[indice],
             self._fotografias[indice - 1],
         )
-
         return True
 
     def bajar_fotografia(self, indice: int) -> bool:
-        """
-        Baja una fotografia una posicion.
-
-        Retorna False si ya esta en la ultima posicion.
-        """
+        """Baja la fotografía una posición, sin perder su rotación."""
         self._validar_indice(indice)
-
         if indice == len(self._fotografias) - 1:
             return False
-
         self._fotografias[indice], self._fotografias[indice + 1] = (
             self._fotografias[indice + 1],
             self._fotografias[indice],
         )
-
         return True
 
+    def obtener_rotacion(self, indice: int) -> int:
+        """Obtiene grados de giro horario de la imagen indicada."""
+        self._validar_indice(indice)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        return self._rotaciones[clave]
+
+    def rotar_derecha(self, indice: int) -> int:
+        """Suma 90° horarios y devuelve la rotación resultante."""
+        self._validar_indice(indice)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        self._rotaciones[clave] = (self._rotaciones[clave] + 90) % 360
+        return self._rotaciones[clave]
+
+    def rotar_izquierda(self, indice: int) -> int:
+        """Resta 90° horarios y devuelve la rotación resultante."""
+        self._validar_indice(indice)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        self._rotaciones[clave] = (self._rotaciones[clave] - 90) % 360
+        return self._rotaciones[clave]
+
     def vaciar(self) -> None:
-        """Limpia la coleccion, sin eliminar archivos."""
+        """Limpia colección y rotaciones, sin eliminar archivos."""
         self._fotografias.clear()
+        self._rotaciones.clear()
 
     def _validar_indice(self, indice: int) -> None:
-        """Comprueba que un indice corresponda a una fotografia."""
+        """Valida tipo y rango del índice."""
         if type(indice) is not int:
-            raise TypeError(
-                "El indice debe ser un numero entero."
-            )
-
+            raise TypeError("El índice debe ser un número entero.")
         if indice < 0 or indice >= len(self._fotografias):
             raise FotografiaNoEncontradaError(
-                "La fotografia seleccionada no existe."
+                "La fotografía seleccionada no existe."
             )
