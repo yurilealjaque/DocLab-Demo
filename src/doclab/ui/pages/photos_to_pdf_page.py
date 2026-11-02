@@ -13,7 +13,7 @@ No modifica los archivos originales.
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QEvent
+from PySide6.QtCore import Qt, QSize, QEvent, QSignalBlocker
 from PySide6.QtGui import QCloseEvent, QIcon, QImage, QImageReader, QPixmap, QTransform
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -27,10 +27,13 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSlider,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
+
+from doclab.document_engine.image_adjustments import ajustar_brillo_contraste
 
 from doclab.document_engine.photo_manager import (
     GestorFotografias,
@@ -50,6 +53,7 @@ class PaginaFotosPDF(QWidget):
         self.gestor = GestorFotografias()
         self.trabajador = None
         self.imagen_vista_previa = QImage()
+        self.imagen_base_vista_previa = QImage()
 
         self.crear_interfaz()
 
@@ -171,6 +175,34 @@ class PaginaFotosPDF(QWidget):
         )
 
         diseno.addWidget(grupo_fotografias)
+
+        # Controles de edición no destructiva de la imagen seleccionada.
+        grupo_ajustes = QGroupBox("Ajustes de imagen")
+        contenido_ajustes = QVBoxLayout(grupo_ajustes)
+
+        self.etiqueta_brillo = QLabel("Brillo: 0")
+        self.deslizador_brillo = QSlider(Qt.Orientation.Horizontal)
+        self.deslizador_brillo.setRange(-100, 100)
+        self.deslizador_brillo.setValue(0)
+
+        self.etiqueta_contraste = QLabel("Contraste: 0")
+        self.deslizador_contraste = QSlider(Qt.Orientation.Horizontal)
+        self.deslizador_contraste.setRange(-100, 100)
+        self.deslizador_contraste.setValue(0)
+
+        self.boton_restablecer_ajustes = QPushButton("Restablecer ajustes")
+        self.deslizador_brillo.valueChanged.connect(self.cambiar_ajustes)
+        self.deslizador_contraste.valueChanged.connect(self.cambiar_ajustes)
+        self.deslizador_brillo.sliderReleased.connect(self.actualizar_miniatura_seleccionada)
+        self.deslizador_contraste.sliderReleased.connect(self.actualizar_miniatura_seleccionada)
+        self.boton_restablecer_ajustes.clicked.connect(self.restablecer_ajustes)
+
+        contenido_ajustes.addWidget(self.etiqueta_brillo)
+        contenido_ajustes.addWidget(self.deslizador_brillo)
+        contenido_ajustes.addWidget(self.etiqueta_contraste)
+        contenido_ajustes.addWidget(self.deslizador_contraste)
+        contenido_ajustes.addWidget(self.boton_restablecer_ajustes)
+        diseno.addWidget(grupo_ajustes)
 
         # 2. Orden de las fotografias.
         grupo_organizacion = QGroupBox(
@@ -352,7 +384,7 @@ class PaginaFotosPDF(QWidget):
             Qt.TransformationMode.SmoothTransformation,
         )
 
-    def crear_icono_miniatura(self, ruta, grados=0):
+    def crear_icono_miniatura(self, ruta, grados=0, brillo=0, contraste=0):
         """Carga una miniatura pequeña, sin modificar la imagen original.
 
         QImageReader intenta reducir el tamaño durante la lectura para
@@ -375,6 +407,8 @@ class PaginaFotosPDF(QWidget):
             return QIcon()
 
         imagen = self.aplicar_rotacion(imagen, grados)
+        if brillo or contraste:
+            imagen = ajustar_brillo_contraste(imagen, brillo, contraste)
         miniatura = QPixmap.fromImage(imagen).scaled(
             QSize(96, 72),
             Qt.AspectRatioMode.KeepAspectRatio,
@@ -390,11 +424,12 @@ class PaginaFotosPDF(QWidget):
 
         for numero, fotografia in enumerate(fotografias, start=1):
             grados = self.gestor.obtener_rotacion(numero - 1)
+            brillo, contraste = self.gestor.obtener_ajustes(numero - 1)
             elemento = QListWidgetItem(
                 f"{numero}. {fotografia.ruta.name}"
             )
             elemento.setIcon(
-                self.crear_icono_miniatura(fotografia.ruta, grados)
+                self.crear_icono_miniatura(fotografia.ruta, grados, brillo, contraste)
             )
             elemento.setToolTip(str(fotografia.ruta))
             self.lista_fotografias.addItem(elemento)
@@ -424,11 +459,13 @@ class PaginaFotosPDF(QWidget):
     def actualizar_vista_previa(self, indice=None):
         """Carga la imagen seleccionada a resolución limitada."""
         self.imagen_vista_previa = QImage()
+        self.imagen_base_vista_previa = QImage()
         posicion = self.lista_fotografias.currentRow()
         fotografias = self.gestor.obtener_fotografias()
 
         if posicion < 0 or posicion >= len(fotografias):
             self.etiqueta_nombre_vista_previa.setText("")
+            self.sincronizar_deslizadores(None)
             self.dibujar_vista_previa()
             return
 
@@ -454,8 +491,78 @@ class PaginaFotosPDF(QWidget):
 
         imagen = lector.read()
         grados = self.gestor.obtener_rotacion(posicion)
-        self.imagen_vista_previa = self.aplicar_rotacion(imagen, grados)
+        self.imagen_base_vista_previa = self.aplicar_rotacion(imagen, grados)
+        self.sincronizar_deslizadores(posicion)
+        self.aplicar_ajustes_vista_previa()
+
+    def sincronizar_deslizadores(self, indice):
+        """Refleja los ajustes guardados sin provocar cambios accidentales."""
+        if indice is None:
+            brillo, contraste = (0, 0)
+        else:
+            brillo, contraste = self.gestor.obtener_ajustes(indice)
+        with QSignalBlocker(self.deslizador_brillo):
+            self.deslizador_brillo.setValue(brillo)
+        with QSignalBlocker(self.deslizador_contraste):
+            self.deslizador_contraste.setValue(contraste)
+        self.etiqueta_brillo.setText(f"Brillo: {brillo:+d}" if brillo else "Brillo: 0")
+        self.etiqueta_contraste.setText(
+            f"Contraste: {contraste:+d}" if contraste else "Contraste: 0"
+        )
+
+    def aplicar_ajustes_vista_previa(self):
+        """Procesa solo la copia reducida; no vuelve a leer el original."""
+        if self.imagen_base_vista_previa.isNull():
+            self.imagen_vista_previa = QImage()
+        else:
+            self.imagen_vista_previa = ajustar_brillo_contraste(
+                self.imagen_base_vista_previa,
+                self.deslizador_brillo.value(),
+                self.deslizador_contraste.value(),
+            )
         self.dibujar_vista_previa()
+
+    def cambiar_ajustes(self, valor=None):
+        """Guarda cambios individuales y actualiza la previsualización."""
+        if self.hay_operacion_activa():
+            return
+        indice = self.lista_fotografias.currentRow()
+        if not 0 <= indice < self.gestor.cantidad():
+            return
+        brillo = self.deslizador_brillo.value()
+        contraste = self.deslizador_contraste.value()
+        self.gestor.establecer_ajustes(indice, brillo, contraste)
+        self.etiqueta_brillo.setText(f"Brillo: {brillo:+d}" if brillo else "Brillo: 0")
+        self.etiqueta_contraste.setText(
+            f"Contraste: {contraste:+d}" if contraste else "Contraste: 0"
+        )
+        self.aplicar_ajustes_vista_previa()
+
+    def actualizar_miniatura_seleccionada(self):
+        """Recalcula solo el icono editado al soltar el deslizador."""
+        indice = self.lista_fotografias.currentRow()
+        if not 0 <= indice < self.gestor.cantidad():
+            return
+        fotografia = self.gestor.obtener_fotografias()[indice]
+        grados = self.gestor.obtener_rotacion(indice)
+        brillo, contraste = self.gestor.obtener_ajustes(indice)
+        elemento = self.lista_fotografias.item(indice)
+        if elemento is not None:
+            elemento.setIcon(
+                self.crear_icono_miniatura(fotografia.ruta, grados, brillo, contraste)
+            )
+
+    def restablecer_ajustes(self):
+        """Restaura brillo/contraste a cero sin modificar la rotación."""
+        if self.hay_operacion_activa():
+            return
+        indice = self.lista_fotografias.currentRow()
+        if not 0 <= indice < self.gestor.cantidad():
+            return
+        self.gestor.restablecer_ajustes(indice)
+        self.sincronizar_deslizadores(indice)
+        self.aplicar_ajustes_vista_previa()
+        self.actualizar_miniatura_seleccionada()
 
     def dibujar_vista_previa(self):
         """Mantiene las proporciones de la imagen en el panel."""
@@ -504,6 +611,9 @@ class PaginaFotosPDF(QWidget):
         puede_rotar = not activo and 0 <= posicion < cantidad
         self.boton_rotar_izquierda.setEnabled(puede_rotar)
         self.boton_rotar_derecha.setEnabled(puede_rotar)
+        self.deslizador_brillo.setEnabled(puede_rotar)
+        self.deslizador_contraste.setEnabled(puede_rotar)
+        self.boton_restablecer_ajustes.setEnabled(puede_rotar)
 
         self.boton_generar.setEnabled(
             not activo and cantidad > 0

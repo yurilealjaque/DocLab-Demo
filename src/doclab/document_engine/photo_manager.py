@@ -1,7 +1,9 @@
-"""Gestión ordenada de imágenes y sus rotaciones no destructivas."""
+"""Gestión ordenada de imágenes, rotaciones y ajustes no destructivos."""
 
 import os
 from pathlib import Path
+
+from doclab.document_engine.image_adjustments import _validar_ajuste
 
 from doclab.document_engine.image_validator import (
     InformacionImagen,
@@ -24,13 +26,15 @@ class FotografiaNoEncontradaError(ErrorGestionFotografias):
 class GestorFotografias:
     """Colección ordenada de fotografías, sin modificar los originales.
 
-    Las rotaciones se almacenan en memoria por ruta normalizada y se expresan
-    en grados en el sentido de las agujas del reloj: 0, 90, 180 o 270.
+    Las rotaciones y los ajustes se almacenan en memoria por ruta normalizada.
+    Rotaciones: 0, 90, 180 y 270 grados horarios.
+    Brillo y contraste: valores enteros entre -100 y 100.
     """
 
     def __init__(self):
         self._fotografias: list[InformacionImagen] = []
         self._rotaciones: dict[str, int] = {}
+        self._ajustes: dict[str, tuple[int, int]] = {}
 
     @staticmethod
     def _normalizar_ruta(ruta_archivo) -> str:
@@ -59,6 +63,7 @@ class GestorFotografias:
         informacion = validar_imagen(ruta_archivo)
         self._fotografias.append(informacion)
         self._rotaciones[clave] = 0
+        self._ajustes[clave] = (0, 0)
         return informacion
 
     def agregar_fotografias(self, rutas_archivos) -> int:
@@ -84,13 +89,16 @@ class GestorFotografias:
         self._fotografias.extend(nuevas_fotografias)
         for clave in rutas_nuevas:
             self._rotaciones[clave] = 0
+            self._ajustes[clave] = (0, 0)
         return len(nuevas_fotografias)
 
     def quitar_fotografia(self, indice: int) -> InformacionImagen:
         """Quita la fotografía y su rotación; no borra el archivo."""
         self._validar_indice(indice)
         fotografia = self._fotografias.pop(indice)
-        self._rotaciones.pop(self._normalizar_ruta(fotografia.ruta), None)
+        clave = self._normalizar_ruta(fotografia.ruta)
+        self._rotaciones.pop(clave, None)
+        self._ajustes.pop(clave, None)
         return fotografia
 
     def subir_fotografia(self, indice: int) -> bool:
@@ -135,10 +143,38 @@ class GestorFotografias:
         self._rotaciones[clave] = (self._rotaciones[clave] - 90) % 360
         return self._rotaciones[clave]
 
+    def obtener_ajustes(self, indice: int) -> tuple[int, int]:
+        """Retorna (brillo, contraste) de una imagen de la colección."""
+        self._validar_indice(indice)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        return self._ajustes[clave]
+
+    def establecer_ajustes(
+        self,
+        indice: int,
+        brillo: int,
+        contraste: int,
+    ) -> tuple[int, int]:
+        """Guarda ambos ajustes de forma atómica, sin modificar el archivo."""
+        self._validar_indice(indice)
+        _validar_ajuste("brillo", brillo)
+        _validar_ajuste("contraste", contraste)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        self._ajustes[clave] = (brillo, contraste)
+        return self._ajustes[clave]
+
+    def restablecer_ajustes(self, indice: int) -> tuple[int, int]:
+        """Devuelve brillo y contraste a cero; conserva la rotación."""
+        self._validar_indice(indice)
+        clave = self._normalizar_ruta(self._fotografias[indice].ruta)
+        self._ajustes[clave] = (0, 0)
+        return self._ajustes[clave]
+
     def vaciar(self) -> None:
-        """Limpia colección y rotaciones, sin eliminar archivos."""
+        """Limpia colección, rotaciones y ajustes, sin borrar archivos."""
         self._fotografias.clear()
         self._rotaciones.clear()
+        self._ajustes.clear()
 
     def _validar_indice(self, indice: int) -> None:
         """Valida tipo y rango del índice."""
