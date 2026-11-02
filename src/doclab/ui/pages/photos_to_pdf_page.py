@@ -1,4 +1,3 @@
-
 """
 Pantalla para convertir fotografias en un PDF.
 
@@ -14,8 +13,8 @@ No modifica los archivos originales.
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import Qt, QSize, QEvent
+from PySide6.QtGui import QCloseEvent, QIcon, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -23,10 +22,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -48,6 +49,7 @@ class PaginaFotosPDF(QWidget):
 
         self.gestor = GestorFotografias()
         self.trabajador = None
+        self.imagen_vista_previa = QImage()
 
         self.crear_interfaz()
 
@@ -86,7 +88,7 @@ class PaginaFotosPDF(QWidget):
 
         # 1. Seleccion de fotografias.
         grupo_fotografias = QGroupBox(
-            "1. Seleccionar imagenes"
+            "1. Seleccionar imágenes"
         )
         contenido_fotografias = QVBoxLayout(
             grupo_fotografias
@@ -94,7 +96,7 @@ class PaginaFotosPDF(QWidget):
 
         explicacion = QLabel(
             "Admite archivos JPG, JPEG y PNG. "
-            "Selecciona una o varias fotografías."
+            "Selecciona una o varias imágenes."
         )
         explicacion.setObjectName("textoSecundario")
         explicacion.setWordWrap(True)
@@ -107,13 +109,18 @@ class PaginaFotosPDF(QWidget):
         )
 
         self.lista_fotografias = QListWidget()
-        self.lista_fotografias.setMinimumHeight(180)
+        self.lista_fotografias.setMinimumHeight(240)
+        self.lista_fotografias.setIconSize(QSize(96, 72))
+        self.lista_fotografias.setSpacing(6)
         self.lista_fotografias.currentRowChanged.connect(
             self.actualizar_botones
         )
+        self.lista_fotografias.currentRowChanged.connect(
+            self.actualizar_vista_previa
+        )
 
         self.etiqueta_contador = QLabel(
-            "0 fotografías seleccionadas"
+            "0 imágenes seleccionadas"
         )
         self.etiqueta_contador.setObjectName(
             "textoSecundario"
@@ -130,6 +137,39 @@ class PaginaFotosPDF(QWidget):
             self.etiqueta_contador
         )
 
+        # Previsualización ampliada de la imagen seleccionada.
+        self.etiqueta_vista_previa = QLabel(
+            "Selecciona una imagen para verla aquí."
+        )
+        self.etiqueta_vista_previa.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+        self.etiqueta_vista_previa.setMinimumHeight(240)
+        self.etiqueta_vista_previa.setMaximumHeight(340)
+        self.etiqueta_vista_previa.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+        self.etiqueta_vista_previa.setWordWrap(True)
+        self.etiqueta_vista_previa.setStyleSheet(
+            "background-color: #231D2D;"
+            "border: 1px solid #57476B;"
+            "border-radius: 10px;"
+            "color: #C7BDD6;"
+            "padding: 8px;"
+        )
+        self.etiqueta_vista_previa.installEventFilter(self)
+        contenido_fotografias.addWidget(self.etiqueta_vista_previa)
+
+        self.etiqueta_nombre_vista_previa = QLabel("")
+        self.etiqueta_nombre_vista_previa.setObjectName(
+            "textoSecundario"
+        )
+        self.etiqueta_nombre_vista_previa.setWordWrap(True)
+        contenido_fotografias.addWidget(
+            self.etiqueta_nombre_vista_previa
+        )
+
         diseno.addWidget(grupo_fotografias)
 
         # 2. Orden de las fotografias.
@@ -141,7 +181,7 @@ class PaginaFotosPDF(QWidget):
         )
 
         explicacion_orden = QLabel(
-            "Selecciona una fotografía y utiliza "
+            "Selecciona una imagen y utiliza "
             "los botones para cambiar su posición "
             "o quitarla de la lista. "
             "Los originales no se eliminarán."
@@ -188,7 +228,7 @@ class PaginaFotosPDF(QWidget):
         )
 
         explicacion_resultado = QLabel(
-            "DocLab creará un PDF con una fotografía "
+            "DocLab creará un PDF con una imagen "
             "por página, respetando el orden elegido. "
             "Esta primera versión no aplica filtros "
             "ni correcciones automáticas."
@@ -250,7 +290,7 @@ class PaginaFotosPDF(QWidget):
 
         rutas, _ = QFileDialog.getOpenFileNames(
             self,
-            "Seleccionar fotografías",
+            "Seleccionar imágenes",
             "",
             "Imágenes (*.jpg *.jpeg *.png)",
         )
@@ -264,7 +304,7 @@ class PaginaFotosPDF(QWidget):
         except Exception as error:
             QMessageBox.warning(
                 self,
-                "No fue posible agregar las fotografías",
+                "No fue posible agregar las imágenes",
                 str(error),
             )
 
@@ -283,32 +323,59 @@ class PaginaFotosPDF(QWidget):
         self.actualizar_lista()
 
         self.etiqueta_estado.setText(
-            f"Se agregaron {cantidad} fotografía(s)."
+            f"Se agregaron {cantidad} imagen(es)."
         )
 
         return cantidad
 
+    def crear_icono_miniatura(self, ruta):
+        """Carga una miniatura pequeña, sin modificar la imagen original.
+
+        QImageReader intenta reducir el tamaño durante la lectura para
+        evitar cargar fotografías enormes a resolución completa.
+        Si el archivo deja de estar disponible, se muestra solo su nombre.
+        """
+        lector = QImageReader(str(ruta))
+        lector.setAutoTransform(True)
+
+        tamano_original = lector.size()
+        if tamano_original.isValid():
+            tamano_reducido = tamano_original.scaled(
+                QSize(96, 72),
+                Qt.AspectRatioMode.KeepAspectRatio,
+            )
+            lector.setScaledSize(tamano_reducido)
+
+        imagen = lector.read()
+        if imagen.isNull():
+            return QIcon()
+
+        miniatura = QPixmap.fromImage(imagen).scaled(
+            QSize(96, 72),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        return QIcon(miniatura)
+
     def actualizar_lista(self, indice_seleccionado=-1):
-        """Sincroniza la lista visual con el gestor."""
+        """Sincroniza nombres, orden y miniaturas con el gestor."""
 
         self.lista_fotografias.clear()
-
         fotografias = self.gestor.obtener_fotografias()
 
-        for numero, fotografia in enumerate(
-            fotografias,
-            start=1,
-        ):
-            nombre = fotografia.ruta.name
-
-            self.lista_fotografias.addItem(
-                f"{numero}. {nombre}"
+        for numero, fotografia in enumerate(fotografias, start=1):
+            elemento = QListWidgetItem(
+                f"{numero}. {fotografia.ruta.name}"
             )
+            elemento.setIcon(
+                self.crear_icono_miniatura(fotografia.ruta)
+            )
+            elemento.setToolTip(str(fotografia.ruta))
+            self.lista_fotografias.addItem(elemento)
 
         cantidad = self.gestor.cantidad()
-
         self.etiqueta_contador.setText(
-            f"{cantidad} fotografía(s) seleccionada(s)"
+            f"{cantidad} imagen(es) seleccionada(s)"
         )
 
         if 0 <= indice_seleccionado < cantidad:
@@ -317,6 +384,65 @@ class PaginaFotosPDF(QWidget):
             )
 
         self.actualizar_botones()
+        self.actualizar_vista_previa()
+
+    def eventFilter(self, objeto, evento):
+        """Ajusta la previsualización cuando cambia su tamaño."""
+        if (
+            objeto is self.etiqueta_vista_previa
+            and evento.type() == QEvent.Type.Resize
+        ):
+            self.dibujar_vista_previa()
+        return super().eventFilter(objeto, evento)
+
+    def actualizar_vista_previa(self, indice=None):
+        """Carga la imagen seleccionada a resolución limitada."""
+        self.imagen_vista_previa = QImage()
+        posicion = self.lista_fotografias.currentRow()
+        fotografias = self.gestor.obtener_fotografias()
+
+        if posicion < 0 or posicion >= len(fotografias):
+            self.etiqueta_nombre_vista_previa.setText("")
+            self.dibujar_vista_previa()
+            return
+
+        ruta = fotografias[posicion].ruta
+        self.etiqueta_nombre_vista_previa.setText(ruta.name)
+
+        lector = QImageReader(str(ruta))
+        lector.setAutoTransform(True)
+        tamano_original = lector.size()
+        if tamano_original.isValid():
+            lector.setScaledSize(
+                tamano_original.scaled(
+                    QSize(1000, 800),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                )
+            )
+
+        self.imagen_vista_previa = lector.read()
+        self.dibujar_vista_previa()
+
+    def dibujar_vista_previa(self):
+        """Mantiene las proporciones de la imagen en el panel."""
+        etiqueta = self.etiqueta_vista_previa
+        if self.imagen_vista_previa.isNull():
+            etiqueta.clear()
+            if self.lista_fotografias.currentRow() < 0:
+                etiqueta.setText("Selecciona una imagen para verla aquí.")
+            else:
+                etiqueta.setText("No se pudo visualizar la imagen.")
+            return
+
+        ancho = max(1, etiqueta.width() - 24)
+        alto = max(1, etiqueta.height() - 24)
+        miniatura = QPixmap.fromImage(self.imagen_vista_previa)
+        miniatura = miniatura.scaled(
+            QSize(ancho, alto),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        etiqueta.setPixmap(miniatura)
 
     def actualizar_botones(self, indice=None):
         """Habilita acciones segun seleccion y estado."""
@@ -405,15 +531,15 @@ class PaginaFotosPDF(QWidget):
         if self.gestor.cantidad() == 0:
             QMessageBox.warning(
                 self,
-                "Sin fotografías",
-                "Agrega al menos una fotografía.",
+                "Sin imágenes",
+                "Agrega al menos una imagen.",
             )
             return
 
         ruta, _ = QFileDialog.getSaveFileName(
             self,
-            "Guardar fotografías como PDF",
-            "clases_digitalizadas.pdf",
+            "Guardar imágenes como PDF",
+            "imagenes.pdf",
             "Documentos PDF (*.pdf)",
         )
 
@@ -444,7 +570,7 @@ class PaginaFotosPDF(QWidget):
 
         if self.gestor.cantidad() == 0:
             raise ValueError(
-                "No hay fotografías para procesar."
+                "No hay imágenes para procesar."
             )
 
         self.trabajador = TrabajadorFotosPDF(
@@ -467,7 +593,7 @@ class PaginaFotosPDF(QWidget):
         self.progreso.setVisible(True)
 
         self.etiqueta_estado.setText(
-            "Generando documento PDF..."
+            "Convirtiendo imágenes a PDF..."
         )
 
         self.trabajador.start()
@@ -481,7 +607,7 @@ class PaginaFotosPDF(QWidget):
 
         QMessageBox.information(
             self,
-            "Digitalización completada",
+            "Conversión completada",
             "El documento fue generado correctamente.\n\n"
             f"Páginas: {resultado.numero_paginas}\n"
             f"Tamaño: {resultado.tamano_bytes / 1048576:.2f} MB\n"
