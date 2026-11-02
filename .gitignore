@@ -1,7 +1,8 @@
 
 # ==========================================
 # DOCLAB - GITIGNORE
-# Python + PySide6
+# Python 3.13 + PySide6
+# Version 1.0.0
 # ==========================================
 
 # 1. Entornos virtuales
@@ -10,7 +11,7 @@ venv/
 env/
 ENV/
 
-# 2. Cache y archivos temporales de Python
+# 2. Cache y temporales Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -19,6 +20,8 @@ __pycache__/
 .ruff_cache/
 .pyre/
 .pytype/
+.tox/
+.nox/
 
 # 3. Compilacion y distribucion
 build/
@@ -28,14 +31,20 @@ dist/
 *.egg
 *.whl
 
-# 4. Archivos de PyInstaller
+# 4. PyInstaller
+# Ignorar archivos spec experimentales.
 *.spec
 
-# 5. Configuracion local de VS Code
+# Conservar la configuracion oficial.
+!DocLab.spec
+
+# 5. Configuracion local de editores
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# 6. Archivos temporales y logs
+# 6. Logs y archivos temporales
 *.log
 *.tmp
 *.temp
@@ -57,15 +66,19 @@ desktop.ini
 *.sqlite
 *.sqlite3
 
-# 9. Documentos de prueba privados
+# 9. Archivos privados de prueba
 data/private/
 data/temp/
 data/output/
+manual_tests/
+pruebas_manuales/
 
-# 10. Archivos generados por DocLab
+# 10. Resultados generados
 output/
 exports/
 temp/
+*.docx.bak
+*.docx.tmp
 
 # 11. Cobertura de pruebas
 .coverage
@@ -73,34 +86,31 @@ temp/
 htmlcov/
 coverage.xml
 
-# 12. Archivos temporales de Qt
+# 12. Archivos temporales Qt
 *.autosave
 *.qmlc
 *.jsc
 
 # ==========================================
-# 13. Modelos OCR de Tesseract
+# 13. Recursos OCR
 # ==========================================
 
-# No incluir modelos binarios en Git.
-# Se obtienen separadamente durante el desarrollo.
+# Modelos grandes descargados localmente.
 src/doclab/resources/tessdata/*.traineddata
 
-# Mantener la estructura de carpetas en el repositorio.
+# Conservar la carpeta en Git.
 !src/doclab/resources/tessdata/.gitkeep
 
+# ==========================================
+# 14. Recursos graficos
+# ==========================================
+
+# Los iconos y estilos de DocLab
+# deben incluirse en el repositorio.
+# No ignorar:
+# src/doclab/resources/icons/doclab.ico
+# src/doclab/ui/styles/theme.qss
 
 # ==========================================
-# 14. Documentos locales para pruebas manuales
+# FIN
 # ==========================================
-
-# PDFs y Word guardados para pruebas locales.
-manual_tests/
-pruebas_manuales/
-
-# Resultados locales de conversion.
-*.docx.bak
-*.docx.tmp
-
-# Documentos utilizados en pruebas manuales locales
-pruebas_manuales/
