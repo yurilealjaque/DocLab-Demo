@@ -1561,3 +1561,161 @@ DocLab es un proyecto personal en desarrollo con el fin de ayudar a las personas
 ---
 
 **DocLab — Convierte, organiza y transforma tus documentos.**
+# DocLab — Continuación del README
+
+> **Documento complementario en Markdown.** Este texto está preparado para anexarse al README del repositorio, después de las secciones existentes, sin eliminar el historial del desarrollo. Describe los incrementos recientes de **Imágenes a PDF**, hasta la integración de brillo y contraste en el PDF final. Fecha de actualización: **2 de noviembre de 2026**.
+
+## Evolución reciente del proyecto: Imágenes a PDF
+
+DocLab incorpora una herramienta para crear documentos PDF multipágina a partir de archivos **JPG, JPEG y PNG**. Aunque nació como una propuesta para digitalizar clases, su nombre definitivo es **Imágenes a PDF**, ya que permite organizar fotografías de apuntes, diapositivas, pizarras y otros documentos.
+
+La herramienta mantiene la arquitectura modular del proyecto:
+
+```text
+Interfaz PySide6 (PaginaFotosPDF)
+          |
+          v
+Trabajador QThread (TrabajadorFotosPDF)
+          |
+          v
+ServicioFotosPDF
+          |
+          v
+Motor de generación PDF (photos_to_pdf.py)
+          |
+          v
+Documento PDF multipágina
+```
+
+La gestión del orden, las rotaciones y los ajustes por imagen se realiza mediante `GestorFotografias`; la validación se apoya en `image_validator.py`.
+
+### Funciones implementadas
+
+- **Importación y validación:** selección múltiple de imágenes compatibles; comprobaciones de existencia, formato real, legibilidad, dimensiones y tamaño para rechazar archivos problemáticos.
+- **Gestión ordenada:** añadir, quitar, subir y bajar imágenes, con rechazo de duplicados y validación de lotes sin incorporación parcial cuando ocurre un error.
+- **Miniaturas:** cada elemento de la lista muestra una versión reducida de la imagen.
+- **Previsualización ampliada:** al seleccionar un archivo se muestra una vista más grande, conservando sus proporciones y considerando la orientación EXIF interpretada por Qt.
+- **Rotación manual:** giro de 90° a la izquierda o derecha, con rotaciones acumuladas de 0°, 90°, 180° y 270°; cada imagen conserva su propia orientación al reordenarse.
+- **Brillo y contraste:** controles individuales de -100 a +100, previsualización de los ajustes y opción para restablecerlos sin borrar la rotación.
+- **Transformaciones en el PDF:** los giros y ajustes seleccionados se aplican a la imagen incorporada en cada página, no solo a la vista previa.
+- **Generación multipágina:** se incorpora una imagen por página, respetando el orden elegido.
+- **Protección de originales:** la lectura, los giros y los filtros se ejecutan sobre representaciones en memoria; no se reescriben ni eliminan los archivos fuente.
+- **Procesamiento fuera del hilo gráfico:** la creación del documento se ejecuta mediante `QThread`, con mensajes de éxito y error y bloqueo de acciones incompatibles durante el trabajo.
+- **Protección del destino:** comprobación de rutas, validación del PDF resultante, uso de archivo temporal y publicación sin sobrescribir deliberadamente un archivo existente.
+
+### Flujo de uso
+
+1. Abrir DocLab y seleccionar **Imágenes a PDF** desde Inicio o el menú lateral.
+2. Importar una o varias imágenes JPG, JPEG o PNG.
+3. Revisar las miniaturas y seleccionar una imagen para ampliarla.
+4. Organizar el orden con **Subir**, **Bajar** y **Quitar**.
+5. Corregir la orientación con los botones de rotación, si corresponde.
+6. Ajustar el brillo y el contraste de cada imagen, o restablecer los valores a cero.
+7. Pulsar **Generar PDF** y elegir una ubicación disponible.
+8. Abrir el archivo generado y revisar el orden, la orientación, la legibilidad y las transformaciones aplicadas.
+
+### Evolución por incrementos
+
+| Incremento | Desarrollo | Estado informado |
+| --- | --- | --- |
+| Implementación inicial | Validador, gestor, motor PDF, servicio, trabajador e integración gráfica | Aprobado |
+| 7A | Miniaturas en la lista | Pruebas y revisión visual aprobadas |
+| 7B | Previsualización ampliada | Pruebas y revisión visual aprobadas |
+| 8A | Registro de rotaciones individuales en el gestor | Pruebas aprobadas |
+| 8B.1 | Aplicación de la rotación al motor PDF | Pruebas aprobadas |
+| 8B.2 | Controles de rotación, miniaturas y previsualización sincronizadas | Pruebas y revisión visual aprobadas |
+| 9A | Motor de brillo y contraste | Pruebas aprobadas |
+| 9B | Ajustes individuales asociados a cada imagen | Pruebas aprobadas |
+| 9C | Deslizadores gráficos, restablecimiento y previsualización | Pruebas aprobadas |
+| 9D | Aplicación de brillo y contraste a las páginas del PDF | Finalización y pruebas informadas por el desarrollador; conviene conservar evidencia del resultado visual y del conteo final |
+
+## Módulos nuevos o ampliados
+
+| Ruta desde `src/doclab/` | Responsabilidad |
+| --- | --- |
+| `document_engine/image_validator.py` | Validar los archivos de imagen antes de utilizarlos |
+| `document_engine/photo_manager.py` | Mantener orden, selección, rotaciones y ajustes individuales |
+| `document_engine/image_adjustments.py` | Procesar brillo y contraste en memoria |
+| `document_engine/photos_to_pdf.py` | Preparar las imágenes transformadas y construir el PDF |
+| `services/photos_to_pdf_service.py` | Coordinar la solicitud de generación de PDF |
+| `workers/photos_to_pdf_worker.py` | Ejecutar la generación mediante QThread |
+| `ui/pages/photos_to_pdf_page.py` | Importar, organizar, visualizar, girar, ajustar y generar el documento |
+| `ui/pages/home_page.py` | Mostrar la tarjeta de la herramienta y emitir su señal de navegación |
+| `ui/main_window.py` | Registrar la pantalla, conectar los accesos y proteger el cierre durante una operación |
+
+La organización general del programa continúa siguiendo la separación entre **presentación, trabajador, servicio y motor documental**. Los nombres internos de los módulos y clases mantienen `photos_to_pdf` o `Fotografias`, mientras que el nombre visible de la herramienta es **Imágenes a PDF**.
+
+## Pruebas automatizadas y validación
+
+La herramienta está acompañada de pruebas de validación de imágenes, administración de colecciones, generación de PDF, servicio, trabajador, navegación y componentes de interfaz. Los incrementos posteriores incorporaron pruebas de miniaturas, previsualización, rotación y ajustes visuales.
+
+Archivos de pruebas incorporados durante estos incrementos:
+
+```text
+tests/test_image_validator.py
+tests/test_photo_manager.py
+tests/test_photos_to_pdf.py
+tests/test_photos_to_pdf_service.py
+tests/test_photos_to_pdf_worker.py
+tests/test_photos_to_pdf_page.py
+tests/test_photos_navigation.py
+tests/test_photos_thumbnails.py
+tests/test_photos_preview.py
+tests/test_photo_rotation_manager.py
+tests/test_photos_pdf_rotation.py
+tests/test_photos_ui_rotation.py
+tests/test_image_adjustments.py
+tests/test_photo_adjustments_manager.py
+tests/test_photos_ui_adjustments.py
+```
+
+**Seguimiento del desarrollo:** se reportaron **369 pruebas aprobadas** después del incremento 9C. Posteriormente se informó que la integración del incremento 9D también pasó las verificaciones. **El total exacto de pruebas de la versión posterior a 9D debe confirmarse mediante una nueva ejecución de la suite completa**; no se fija aquí un número no verificado.
+
+Ejecutar todas las pruebas:
+
+```bash
+python -m pytest -q --tb=short
+```
+
+Ejecutar únicamente el módulo de ajustes visuales:
+
+```bash
+python -m pytest tests/test_image_adjustments.py -v --tb=short
+python -m pytest tests/test_photo_adjustments_manager.py -v --tb=short
+python -m pytest tests/test_photos_ui_adjustments.py -v --tb=short
+```
+
+Las pruebas automáticas se complementaron con comprobaciones manuales de importación, ordenamiento, vista previa, miniaturas y rotación en la interfaz de Windows. Antes de una entrega se recomienda revisar también el brillo y contraste **dentro del PDF final**, especialmente con fotografías reales de diferentes tamaños y formatos.
+
+## Decisiones técnicas y limitaciones
+
+- **Procesamiento local:** las fotografías se procesan mediante bibliotecas instaladas en el equipo, sin requerir un servicio de conversión en la nube.
+- **Transformaciones no destructivas:** los giros y ajustes son parámetros asociados a las imágenes y se aplican a copias en memoria al construir el documento.
+- **Orientación EXIF:** el lector de Qt intenta interpretar la orientación registrada por el archivo antes de aplicar la rotación manual.
+- **Previsualización optimizada:** se utilizan representaciones reducidas para limitar el uso de memoria de la interfaz; el resultado exportado debe validarse por separado.
+- **Brillo y contraste básicos:** no sustituyen una restauración fotográfica profesional. Ajustes extremos pueden perder detalle en zonas muy claras u oscuras.
+- **Sin corrección de perspectiva:** actualmente no se ofrece el enderezamiento geométrico de páginas tomadas en ángulo ni la detección automática de esquinas.
+- **Sin OCR específico en Imágenes a PDF:** el PDF generado a partir de fotografías no debe considerarse automáticamente un PDF de texto buscable. Las capacidades OCR de otras herramientas de DocLab son independientes de este flujo.
+- **No equivale a certificación de fidelidad:** es necesario inspeccionar visualmente archivos reales, sobre todo cuando importan el texto fino, el color, las dimensiones o la orientación.
+- **Empaquetado pendiente:** al momento de este informe, la creación y validación de un ejecutable de Windows sin instalación previa de Python sigue siendo una etapa futura.
+
+## Próximos pasos de estabilización
+
+- [x] Implementar conversión de imágenes a PDF multipágina.
+- [x] Incorporar miniaturas y previsualización.
+- [x] Incorporar rotación manual por imagen.
+- [x] Implementar motor y controles de brillo y contraste.
+- [x] Integrar las transformaciones seleccionadas con el motor de generación PDF.
+- [ ] Ejecutar y registrar la suite completa tras los últimos cambios.
+- [ ] Completar una matriz de pruebas manuales con imágenes y PDF reales.
+- [ ] Revisar la incidencia conocida de integridad/visualización en la unión de PDF con determinados archivos reales.
+- [ ] Comprobar regresiones en PDF a Word, OCR, división y compresión.
+- [ ] Preparar y verificar un ejecutable para Windows, incluyendo los recursos locales requeridos.
+- [ ] Consolidar las secciones históricas del README en una documentación principal sin contenido obsoleto.
+- [ ] Publicar una versión etiquetada tras completar las pruebas de distribución.
+
+**Mejoras opcionales para una versión posterior:** corrección manual o automática de perspectiva, mejoras visuales más avanzadas, OCR buscable integrado al flujo Imágenes a PDF e historial de operaciones.
+
+---
+
+**DocLab — Convierte, organiza y transforma tus documentos.**
