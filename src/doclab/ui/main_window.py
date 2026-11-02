@@ -1,4 +1,3 @@
-
 """
 Ventana principal de DocLab.
 
@@ -14,6 +13,7 @@ Herramientas:
 - Unir documentos PDF.
 - Dividir documentos PDF.
 - Comprimir documentos PDF.
+- Digitalizar clases a partir de fotografías.
 - Sobre mí.
 """
 
@@ -35,6 +35,7 @@ from doclab.ui.pages.pdf_merge_page import PaginaUnionPDF
 from doclab.ui.pages.pdf_split_page import PaginaDivisionPDF
 from doclab.ui.pages.pdf_compress_page import PaginaCompresionPDF
 from doclab.ui.pages.about_page import PaginaSobreMi
+from doclab.ui.pages.photos_to_pdf_page import PaginaFotosPDF
 
 
 class VentanaPrincipal(QMainWindow):
@@ -112,6 +113,10 @@ class VentanaPrincipal(QMainWindow):
             "Comprimir PDF"
         )
 
+        self.boton_fotografias = QPushButton(
+            "Imágenes a PDF"
+        )
+
         boton_herramientas = QPushButton(
             "Herramientas"
         )
@@ -126,6 +131,7 @@ class VentanaPrincipal(QMainWindow):
             self.boton_unir,
             self.boton_dividir,
             self.boton_comprimir,
+            self.boton_fotografias,
             boton_herramientas,
             boton_historial,
         ]
@@ -172,6 +178,7 @@ class VentanaPrincipal(QMainWindow):
         self.pagina_union = PaginaUnionPDF()
         self.pagina_division = PaginaDivisionPDF()
         self.pagina_compresion = PaginaCompresionPDF()
+        self.pagina_fotografias = PaginaFotosPDF()
         self.pagina_sobre_mi = PaginaSobreMi()
 
         self.paginas.addWidget(
@@ -192,6 +199,10 @@ class VentanaPrincipal(QMainWindow):
 
         self.paginas.addWidget(
             self.pagina_compresion
+        )
+
+        self.paginas.addWidget(
+            self.pagina_fotografias
         )
 
         self.paginas.addWidget(
@@ -249,6 +260,12 @@ class VentanaPrincipal(QMainWindow):
             )
         )
 
+        self.boton_fotografias.clicked.connect(
+            lambda: self.navegar_a(
+                self.pagina_fotografias
+            )
+        )
+
         self.boton_sobre_mi.clicked.connect(
             lambda: self.navegar_a(
                 self.pagina_sobre_mi
@@ -280,6 +297,12 @@ class VentanaPrincipal(QMainWindow):
         self.pagina_inicio.abrir_compresion_pdf.connect(
             lambda: self.navegar_a(
                 self.pagina_compresion
+            )
+        )
+
+        self.pagina_inicio.abrir_fotografias_pdf.connect(
+            lambda: self.navegar_a(
+                self.pagina_fotografias
             )
         )
 
@@ -351,6 +374,10 @@ class VentanaPrincipal(QMainWindow):
             (
                 self.boton_comprimir,
                 self.pagina_compresion
+            ),
+            (
+                self.boton_fotografias,
+                self.pagina_fotografias
             ),
             (
                 self.boton_sobre_mi,
@@ -477,7 +504,23 @@ class VentanaPrincipal(QMainWindow):
             return
 
         # ---------------------------------------
-        # 5. CIERRE SEGURO
+        # 5. DIGITALIZACIÓN DE CLASES
+        # ---------------------------------------
+
+        if self.pagina_fotografias.hay_operacion_activa():
+            QMessageBox.warning(
+            self,
+            "Conversión de imágenes en proceso",
+            "DocLab está convirtiendo imágenes a PDF "
+            "o finalizando la operación.\n\n"
+            "Espera a que termine el procesamiento "
+            "antes de cerrar la aplicación."
+        )
+            evento.ignore()
+            return
+
+        # ---------------------------------------
+        # 6. CIERRE SEGURO
         # ---------------------------------------
 
         evento.accept()
