@@ -2,11 +2,11 @@
 
 **Suite documental de escritorio para Windows, desarrollada con Python 3.13 y PySide6.**
 
-> **Estado: preparación de DocLab v1.0.0.** Esta documentación describe el conjunto de funcionalidades implementadas y el proceso de desarrollo. La versión 1.0.0 se está preparando, **no se presenta aquí como publicada**. Última evidencia de pruebas proporcionada por el desarrollador: **368 pruebas automatizadas aprobadas en 9,53 segundos**, el 2 de noviembre de 2026. Se generó y abrió una compilación de Windows con PyInstaller; restan las comprobaciones y decisiones de publicación finales.
+> **Estado: proyecto personal de portafolio técnico.** El código fuente de DocLab está disponible para consulta y evaluación de su arquitectura, funcionalidades, pruebas y proceso de desarrollo. `pyproject.toml` declara la versión **1.0.0** del código; esto **no representa un lanzamiento público ni un Release oficial**. Actualmente no se distribuye un ejecutable de Windows. La última ejecución completa comunicada por el desarrollador registró **368 pruebas automatizadas aprobadas en 9,53 segundos** el 2 de noviembre de 2026.
 
 **Repositorio:** https://github.com/yurilealjaque/DocLab-Demo
 
-DocLab nació como un conversor PDF a Word y evolucionó hacia una aplicación modular capaz de convertir, reconocer texto, unir, dividir y optimizar PDF, además de generar documentos PDF a partir de imágenes con ajustes visuales. Su diseño privilegia la ejecución local, el control de errores y la protección de los archivos originales.
+DocLab nació como un conversor PDF a Word y evolucionó hacia una aplicación modular capaz de convertir, reconocer texto, unir, dividir y optimizar PDF, además de generar documentos PDF a partir de imágenes con ajustes visuales. Es un **proyecto personal de aprendizaje y demostración técnica** que permite mostrar decisiones de arquitectura, manejo de errores y pruebas automatizadas. Su diseño privilegia la ejecución local y la protección de los archivos originales.
 
 **Este README tiene dos partes:** (I) una guía consolidada y vigente, redactada para usuarios, desarrolladores y evaluadores; (II) un **archivo histórico íntegro** con el README entregado por el autor. El archivo histórico preserva hitos, decisiones, incidentes y cifras de su momento, pero **sus afirmaciones antiguas no sustituyen el estado actual**.
 
@@ -19,12 +19,12 @@ DocLab nació como un conversor PDF a Word y evolucionó hacia una aplicación m
 5. [Organización del código](#5-organización-del-código)
 6. [Tecnologías y versiones](#6-tecnologías-y-versiones)
 7. [Desarrollo e instalación desde el código](#7-desarrollo-e-instalación-desde-el-código)
-8. [Compilación y distribución Windows](#8-compilación-y-distribución-windows)
+8. [Compilación experimental en Windows](#8-compilación-experimental-en-windows)
 9. [Pruebas y calidad](#9-pruebas-y-calidad)
 10. [Desafíos técnicos y decisiones](#10-desafíos-técnicos-y-decisiones)
 11. [Seguridad, privacidad y límites](#11-seguridad-privacidad-y-límites)
 12. [Historial evolutivo](#12-historial-evolutivo)
-13. [Publicación y roadmap](#13-publicación-y-roadmap)
+13. [Estado del portafolio y posibles mejoras](#13-estado-del-portafolio-y-posibles-mejoras)
 14. [Licencias y contribuciones](#14-licencias-y-contribuciones)
 15. [Archivo histórico completo](#15-archivo-histórico-completo)
 
@@ -41,7 +41,7 @@ DocLab es un proyecto de escritorio que reúne operaciones documentales comunes 
 - Validar entradas, rutas y resultados antes de publicar una salida.
 - Evitar sobrescrituras accidentales y preservar archivos de origen.
 - Probar progresivamente motores, servicios, trabajadores, GUI y navegación.
-- Preparar una distribución Windows que incluya sus dependencias y recursos OCR.
+- Explorar experimentalmente el empaquetado de Windows con dependencias y recursos OCR, sin ofrecer una distribución oficial.
 
 **Alcance de esta versión:** herramientas de conversión y tratamiento PDF e imágenes. DocLab **no** pretende ser un editor integral de PDF, un restaurador fotográfico, un servicio en la nube ni un sistema de certificación de integridad documental.
 
@@ -253,9 +253,9 @@ Las estructuras históricas más detalladas, incluidos módulos OCR y archivos d
 | OCR de Tesseract mediante PyMuPDF | Reconocimiento local de texto | Modelos `spa` / `eng` |
 | `pytest` | Pruebas automatizadas | 9.2.0 en la última ejecución |
 | PyInstaller | Empaquetado Windows | 6.22.3 |
-| Git / GitHub | Versionado / distribución prevista | Rama principal `main` |
+| Git / GitHub | Control de versiones y portafolio de código fuente | Rama principal `main` |
 
-El archivo `pyproject.toml` consultado durante el desarrollo aún indicaba `version = "0.1.0"`. **La transición a `1.0.0` forma parte del cierre del lanzamiento**. No se debe confundir la versión objetivo con una versión ya publicada.
+El archivo `pyproject.toml` del repositorio declara `version = "1.0.0"`. Esta es la **versión del código**, no una prueba de publicación de un ejecutable ni de un lanzamiento en GitHub Releases.
 
 ## 7. Desarrollo e instalación desde el código
 
@@ -284,7 +284,7 @@ Los archivos `spa.traineddata` y `eng.traineddata` **no forman parte del reposit
 src/doclab/resources/tessdata/
 ```
 
-El motor revisa que los modelos requeridos existan y no estén vacíos. El ejecutable distribuido debe incorporarlos para no obligar al usuario final a configurarlos.
+El motor revisa que los modelos requeridos existan y no estén vacíos. En las compilaciones experimentales los modelos OCR se incorporaron como recursos; actualmente no se distribuye un ejecutable oficial.
 
 ### Ejecutar y probar
 
@@ -295,9 +295,9 @@ python -m pytest -q --tb=short
 
 La ejecución desde el código fuente utiliza el entorno virtual; la distribución Windows tiene un procedimiento diferente.
 
-## 8. Compilación y distribución Windows
+## 8. Compilación experimental en Windows
 
-DocLab se empaqueta con PyInstaller en modalidad **`onedir`** (directorio), que facilita localizar dependencias y recursos y depurar problemas de instalación.
+**Esta sección documenta experimentos técnicos de empaquetado, no instrucciones de un Release oficial.** DocLab se ha compilado con PyInstaller en modalidad **`onedir`** (directorio), lo que facilita localizar dependencias y recursos y depurar problemas de instalación. No se ofrece el ejecutable resultante para descarga pública.
 
 ### Configuración
 
@@ -333,11 +333,11 @@ dist/
 
 En el primer ejecutable la aplicación abría, pero el tema grafito-violeta no se aplicaba. Se comprobó que `theme.qss` sí estaba presente bajo `dist/DocLab/_internal/doclab/ui/styles/`; el problema se abordó adaptando la resolución de rutas de recursos en `main.py` para ejecución empaquetada y desde fuente. Tras recompilar, el autor confirmó que el tema volvió a funcionar.
 
-### Validación de distribución
+### Validación experimental
 
-Se confirmó durante el desarrollo que el ejecutable abría, con tema e identidad visual, y se reportó funcionamiento de PDF a Word y OCR. **Antes de publicar el ZIP definitivo**, conviene extraer la carpeta en una ubicación distinta del proyecto y realizar una matriz de pruebas manuales de cada herramienta, especialmente unión de PDF.
+Durante el desarrollo se confirmó que el ejecutable abría con el tema e identidad visual y se reportó funcionamiento de operaciones documentales. Esas comprobaciones no constituyen una validación general de distribución. Por decisión de alcance, **no hay un ZIP oficial publicado ni un calendario previsto para su entrega**.
 
-### Archivo previsto para GitHub Releases
+### Formato de empaquetado estudiado (no publicado)
 
 ```text
 DocLab-v1.0.0-Windows-x64.zip
@@ -346,7 +346,7 @@ DocLab-v1.0.0-Windows-x64.zip
     └── _internal/
 ```
 
-Este nombre es **una propuesta de distribución**, no prueba de una publicación existente. La carpeta `dist/` y `build/` se excluyen del repositorio Git; el archivo ZIP final se publicaría en **GitHub Releases**, mientras que GitHub conservaría el código y `DocLab.spec`.
+Este nombre era una **propuesta técnica histórica**, no un archivo publicado. Las carpetas `dist/` y `build/` se excluyen del repositorio Git; DocLab se presenta actualmente mediante su código fuente y documentación.
 
 ## 9. Pruebas y calidad
 
@@ -381,14 +381,12 @@ Ejecutar pruebas completas:
 python -m pytest -q --tb=short
 ```
 
-### Criterios de aceptación para v1.0.0
+### Criterios de calidad documentados
 
-- Suite automatizada aprobada con código correspondiente al paquete distribuido.
-- Aplicación ejecutable sin depender del entorno Python de desarrollo.
-- Recurso QSS, icono y modelos OCR presentes y utilizables en el paquete.
-- Revisión funcional de conversión tradicional y OCR, unión, división, compresión e imágenes a PDF.
-- Resultados documentales inspeccionados visualmente, en especial transiciones entre archivos unidos.
-- Limitaciones conocidas descritas con claridad y decisiones de licencia/distribución resueltas.
+- Pruebas automatizadas de los módulos y flujos principales, según la evidencia histórica registrada.
+- Verificaciones manuales de operaciones documentales y de la interfaz durante el desarrollo.
+- Limitaciones conocidas comunicadas sin presentar la suite como garantía de fidelidad universal.
+- Compilaciones experimentales evaluadas como ejercicio técnico, **sin distribución pública del ejecutable**.
 
 ## 10. Desafíos técnicos y decisiones
 
@@ -406,7 +404,7 @@ python -m pytest -q --tb=short
 
 **Investigación realizada:** se compararon recorridos de copia e incluso se ensayó `show_pdf_page()`; el resultado comunicado no resolvió concluyentemente el problema.
 
-**Estado:** **incidencia abierta históricamente**; las pruebas genéricas aprobadas no demuestran que el caso concreto se haya corregido. Se requieren archivos reproducibles y pruebas de comparación de renderizado. Este caso debe quedar explícito en las notas de versión o resolverse antes de anunciar compatibilidad amplia.
+**Estado:** **incidencia abierta históricamente**; las pruebas genéricas aprobadas no demuestran que el caso concreto se haya corregido. Se requieren archivos reproducibles y pruebas de comparación de renderizado. Este caso permanece documentado como limitación conocida del proyecto.
 
 ### 10.3 Gestionar OCR con recursos locales
 
@@ -502,26 +500,23 @@ DocLab no nació como una suite completa: su alcance fue creciendo en respuesta 
 
 La documentación íntegra que sigue conserva la narración y los detalles de cada etapa original, incluidos cambios de planificación, mensajes de commit propuestos e incidencias.
 
-## 13. Publicación y roadmap
+## 13. Estado del portafolio y posibles mejoras
 
-### Situación actual de lanzamiento
+### Situación actual
 
-**Objetivo de publicación:** v1.0.0 para Windows. A la fecha de esta consolidación existe una compilación `onedir` generada y ejecutada, pero no se acredita aquí que haya sido publicada como release oficial ni que haya superado una matriz completa de pruebas en una máquina limpia.
+DocLab se presenta como **proyecto personal de desarrollo y portafolio técnico**. El repositorio permite examinar el código fuente, la arquitectura modular, las pruebas automatizadas y las decisiones tomadas durante su evolución. `pyproject.toml` declara la versión de código `1.0.0`, **sin equivaler a un Release publicado**.
 
-### Lista de cierre
+Durante el desarrollo se realizaron compilaciones experimentales de Windows con PyInstaller, que se conservan fuera del repositorio público. **No se ofrece un instalador, un ZIP de distribución ni un ejecutable oficial**, y no existe un compromiso de publicarlos.
 
-- [x] Desarrollar las herramientas actuales.
-- [x] Superar la suite de 368 pruebas comunicada.
-- [x] Integrar icono y diseño de DocLab.
-- [x] Generar `DocLab.exe` con PyInstaller.
-- [x] Recuperar QSS e incluir recursos en el empaquetado.
-- [ ] Confirmar revisión integral de la distribución extraída fuera del proyecto.
-- [ ] Resolver, delimitar o documentar formalmente DOC-001 para el lanzamiento.
-- [ ] Revisar licencias y avisos de componentes y modelos OCR que se redistribuirán.
-- [ ] Sincronizar `pyproject.toml` con la versión definitiva `1.0.0`.
-- [ ] Publicar ZIP de Windows, tag `v1.0.0` y notas en GitHub Releases.
+### Evidencia del trabajo realizado
 
-### Funciones reservadas para versiones posteriores
+- Herramientas documentales y una interfaz gráfica PySide6 implementadas en el repositorio.
+- Arquitectura organizada en interfaz, trabajadores, servicios y motores de procesamiento.
+- Última ejecución completa comunicada: **368 pruebas automatizadas aprobadas** el 2 de noviembre de 2026.
+- Limitaciones y problemas técnicos registrados de manera transparente, incluida la incidencia DOC-001.
+- Experiencia de aprendizaje con PyInstaller, recursos OCR y análisis de dependencias, sin presentar el empaquetado experimental como producto distribuido.
+
+### Posibles mejoras futuras
 
 - Organizador visual de páginas PDF.
 - PDF a imágenes y herramientas de numeración o marcas de agua.
@@ -532,23 +527,25 @@ La documentación íntegra que sigue conserva la narración y los detalles de ca
 - Historial local de operaciones, progreso por página y cancelación controlada.
 - Automatización o procesamiento por lotes.
 
-Estas ideas **no son funciones presentes de v1.0.0** y no constituyen un compromiso de fechas o implementación.
+Estas son ideas de evolución, **no funcionalidades ya presentes ni compromisos de implementación o publicación**.
 
 ## 14. Licencias y contribuciones
 
-**Licencia del proyecto:** en el README histórico se señala que aún no se ha definido. Debe adoptarse y publicarse un archivo `LICENSE` antes de presentar condiciones definitivas de reutilización.
+**Licenciamiento del código propio:** actualmente este repositorio no incorpora un archivo `LICENSE` ni una licencia general de reutilización para el código original de DocLab. Su publicación permite la consulta del proyecto conforme a las condiciones aplicables de GitHub y de la legislación, pero **no equivale por sí sola a una autorización general para copiar, modificar o redistribuir el código**. No se presenta como un proyecto con licenciamiento abierto ya formalizado.
 
-**Dependencias de terceros:** las bibliotecas y los modelos OCR tienen licencias propias. Antes de distribuir un ejecutable públicamente —y especialmente para usos comerciales— es necesario verificar sus condiciones vigentes, obligaciones de atribución, distribución de avisos y posibles requisitos de disponibilidad del código. Son particularmente relevantes PySide6/Qt y PyMuPDF. La presencia de dependencias libres no equivale automáticamente a autorización para cualquier modalidad de distribución.
+**Dependencias de terceros:** DocLab utiliza bibliotecas externas, entre ellas PyMuPDF y PySide6/Qt, que conservan sus respectivos términos y obligaciones de licencia. La ausencia de una licencia general para el código original de DocLab **no elimina ni modifica** los requisitos que puedan aplicarse al uso o distribución de esos componentes. Esta documentación no constituye una declaración de cumplimiento legal integral.
 
-**Contribuciones:** incidencias, propuestas de mejora y discusiones técnicas pueden organizarse mediante GitHub Issues y Pull Requests, si se habilitan para el repositorio.
+**Distribución:** el repositorio se mantiene como portafolio de código fuente; **no existe una distribución binaria oficial**. La eventual elección de una licencia general o distribución de ejecutables requerirá una decisión posterior e informada.
 
-**Nota sobre autoría:** este README describe el proyecto y su evolución técnica sin atribuir funciones no verificadas ni anunciar certificaciones de seguridad que no se hayan realizado.
+**Contribuciones:** las incidencias y propuestas de mejora pueden comentarse por los canales que el repositorio habilite. La aceptación de contribuciones de código debe considerar previamente los permisos y condiciones correspondientes.
+
+**Nota sobre autoría:** este README presenta el desarrollo y su evolución técnica sin prometer garantías de seguridad, exactitud documental ni compatibilidad universal.
 
 ---
 
 ## 15. Archivo histórico completo
 
-> **Registro íntegro, preservado sin suprimir información.** El texto que sigue reproduce el README recibido para esta consolidación (1.721 líneas de contenido). Incluye apartados sucesivos que en su momento se escribieron como continuaciones independientes. Los textos sobre «funciones futuras», cifras antiguas de pruebas, versiones iniciales y empaquetado pendiente **son testimonios del estado histórico**. Para conocer las capacidades presentes y la situación de lanzamiento, consultar primero los apartados 1–14.
+> **Registro íntegro, preservado sin suprimir información.** El texto que sigue reproduce el README recibido para esta consolidación (1.721 líneas de contenido). Incluye apartados sucesivos que en su momento se escribieron como continuaciones independientes. Los textos sobre «funciones futuras», cifras antiguas de pruebas, versiones iniciales y empaquetado pendiente **son testimonios del estado histórico**. Para conocer las capacidades y el estado vigente de DocLab como portafolio, consultar primero los apartados 1–14.
 
 <details>
 <summary><strong>Abrir el README histórico íntegro (prototipo inicial, OCR, unión/división, UI/UX, compresión e Imágenes a PDF)</strong></summary>
